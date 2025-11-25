@@ -22,9 +22,9 @@ export const protect = async (req, res, next) => {
     // Verificar token
     const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback-secret');
     
-    // ✅ CORREGIDO: Usar nombre diferente para evitar conflicto
+    // Usar nombre diferente para evitar conflicto
     const user_data = await user.findByPk(decoded.id, {
-      attributes: { exclude: ['password'] } // No enviar password
+      attributes: { exclude: ['password'] } 
     });
     
     if (!user_data) {
@@ -34,13 +34,7 @@ export const protect = async (req, res, next) => {
       });
     }
     
-    // Verificar si el usuario está activo (si tienes campo 'activo')
-    // if (!user_data.activo) {
-    //   return res.status(401).json({
-    //     success: false,
-    //     message: 'Usuario desactivado'
-    //   });
-    // }
+    
     
     req.user = user_data;
     next();
@@ -114,7 +108,7 @@ export const optional_auth = async (req, res, next) => {
     
     next();
   } catch (error) {
-    // En optional_auth, si el token es inválido, simplemente continuamos
+    
     next();
   }
 };

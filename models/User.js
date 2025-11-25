@@ -1,4 +1,4 @@
-// models/user.js - ALTERNATIVA con snake_case explícito
+// models/user.js 
 import { DataTypes } from 'sequelize';
 
 const user = (sequelize) => {

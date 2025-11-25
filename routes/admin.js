@@ -1,4 +1,4 @@
-// routes/admin.js - VERSIÓN FINAL CORREGIDA
+// routes/admin.js 
 import express from 'express';
 import { protect, restrict_to } from '../middleware/auth.js';
 import { 
@@ -9,7 +9,7 @@ import {
   get_advanced_stats
 } from '../controllers/admin_controller.js';
 
-// ✅ IMPORTAR funciones desde sus controladores correctos
+// IMPORTAR funciones desde sus controladores correctos
 import { get_user_by_id, delete_user, update_user_role } from '../controllers/user_controller.js';
 import { get_order_stats } from '../controllers/order_controller.js';
 
@@ -24,13 +24,13 @@ router.get('/stats/advanced', get_advanced_stats);
 
 // ==================== GESTIÓN DE PEDIDOS ====================
 router.get('/recent-orders', get_recent_orders);
-router.get('/stats/orders', get_order_stats);    // ✅ Ahora existe
+router.get('/stats/orders', get_order_stats);    
 
 // ==================== GESTIÓN DE USUARIOS ====================
 router.get('/users', get_all_users);
-router.get('/users/:id', get_user_by_id);        // ✅ Desde user_controller
+router.get('/users/:id', get_user_by_id);        
 router.put('/users/:id/role', update_user_role);
-router.delete('/users/:id', delete_user);        // ✅ Desde user_controller
+router.delete('/users/:id', delete_user);        
 
 // ==================== GESTIÓN DE PRODUCTOS ====================
 router.get('/products', get_all_products);

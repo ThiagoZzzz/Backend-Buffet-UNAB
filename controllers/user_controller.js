@@ -13,7 +13,7 @@ export const get_profile = async (req, res) => {
         as: 'orders',
         attributes: ['id', 'total', 'estado', 'created_at'],
         order: [['created_at', 'DESC']],
-        limit: 5 // Últimos 5 pedidos
+        limit: 5 
       }]
     });
 
@@ -58,7 +58,7 @@ export const update_profile = async (req, res) => {
     if (telefono !== undefined) update_data.telefono = telefono;
     if (direccion !== undefined) update_data.direccion = direccion;
 
-    // Cambio de contraseña (si se proporciona)
+    // Cambio de contraseña 
     if (new_password) {
       if (!current_password) {
         return res.status(400).json({
@@ -176,6 +176,56 @@ export const get_users = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Error al cargar usuarios'
+    });
+  }
+};
+// Actualizar usuario por ID (admin)
+export const update_user = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { nombre, email, telefono, direccion } = req.body;
+
+    const user_data = await user.findByPk(id);
+
+    if (!user_data) {
+      return res.status(404).json({
+        success: false,
+        message: 'Usuario no encontrado'
+      });
+    }
+
+    // No permitir actualizarse a sí mismo desde esta ruta admin
+    if (parseInt(id) === parseInt(req.user.id)) {
+      return res.status(400).json({
+        success: false,
+        message: 'No puedes actualizar tus propios datos desde esta ruta'
+      });
+    }
+
+    // Preparar datos a actualizar
+    const update_fields = {};
+
+    if (nombre) update_fields.nombre = nombre.trim();
+    if (email) update_fields.email = email.toLowerCase().trim();
+    if (telefono !== undefined) update_fields.telefono = telefono;
+    if (direccion !== undefined) update_fields.direccion = direccion;
+
+    await user_data.update(update_fields);
+
+    const updated_user = await user.findByPk(id, {
+      attributes: { exclude: ['password'] }
+    });
+
+    res.json({
+      success: true,
+      message: 'Usuario actualizado exitosamente',
+      user: updated_user
+    });
+  } catch (error) {
+    console.error('Error al actualizar usuario:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error al actualizar usuario'
     });
   }
 };
@@ -430,7 +480,7 @@ export const get_users_stats = async (req, res) => {
       raw: true
     });
 
-    // Usuarios más activos (con más pedidos)
+    // Usuarios más activos 
     const top_users = await user.findAll({
       attributes: [
         'id',
@@ -477,60 +527,7 @@ export const get_users_stats = async (req, res) => {
   }
 };
 
-// controllers/auth_controller.js - AGREGAR ESTA FUNCIÓN
-export const change_password = async (req, res) => {
-  try {
-    const { current_password, new_password } = req.body;
 
-    if (!current_password || !new_password) {
-      return res.status(400).json({
-        success: false,
-        message: 'La contraseña actual y nueva son requeridas'
-      });
-    }
-
-    const user_data = await user.findByPk(req.user.id);
-    
-    if (!user_data) {
-      return res.status(404).json({
-        success: false,
-        message: 'Usuario no encontrado'
-      });
-    }
-
-    // Verificar contraseña actual
-    const is_password_valid = await bcrypt.compare(current_password, user_data.password);
-    if (!is_password_valid) {
-      return res.status(400).json({
-        success: false,
-        message: 'La contraseña actual es incorrecta'
-      });
-    }
-
-    // Validar nueva contraseña
-    if (new_password.length < 6) {
-      return res.status(400).json({
-        success: false,
-        message: 'La nueva contraseña debe tener al menos 6 caracteres'
-      });
-    }
-
-    // Actualizar contraseña
-    const hashed_password = await bcrypt.hash(new_password, 12);
-    await user_data.update({ password: hashed_password });
-
-    res.json({
-      success: true,
-      message: 'Contraseña actualizada exitosamente'
-    });
-  } catch (error) {
-    console.error('Error al cambiar contraseña:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error al cambiar contraseña'
-    });
-  }
-};
 
 export const promote_to_admin = async (req, res) => {
   try {

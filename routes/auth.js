@@ -1,4 +1,4 @@
-// routes/auth.js - VERSIÓN CORREGIDA
+// routes/auth.js 
 import express from 'express';
 import { 
   register, 
@@ -15,9 +15,11 @@ const router = express.Router();
 // Rutas públicas
 router.post('/register', validate_register, register);
 router.post('/login', validate_login, login);
-router.put('/change-password', change_password);
+
 // Rutas protegidas
 router.use(protect);
+router.put('/change-password', change_password);
 router.get('/verify', verify_token);
+
 
 export default router;

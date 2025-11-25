@@ -29,7 +29,7 @@ export const create_order = async (req, res) => {
     const order_items = [];
     const errors = [];
 
-    // Usar Promise.all para consultas paralelas (más eficiente)
+    // Usar Promise.all para consultas paralelas 
     const product_validation_promises = items.map(async (item) => {
       // Validar cantidad
       if (!item.cantidad || item.cantidad < 1) {

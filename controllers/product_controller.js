@@ -1,7 +1,7 @@
 // controllers/product_controller.js
 import { product } from '../models/index.js';
 import { Op } from 'sequelize';
-import fs from 'fs'; // ✅ AGREGAR para manejar archivos
+import fs from 'fs'; 
 
 export const get_products = async (req, res) => {
   try {

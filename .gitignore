@@ -1,42 +1,70 @@
-# Environment variables
-.env
-.env.*
-!.env.example
-
-# Node.js dependencies
+# ==================== DEPENDENCIAS ====================
 node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
-# Credentials and sensitive files
-*.key
-*.pem
-*.crt
-*.cer
-*.pfx
-*.jks
-config/*.json
-credentials/
-keys/
+# ==================== VARIABLES DE ENTORNO ====================
+.env
+.env.local
+.env.production
+.env.development
+.env.example
 
-# IDE and editor files
+# ==================== ARCHIVOS SUBIDOS ====================
+uploads/
+*.tmp
+*.temp
+
+# ==================== LOGS ====================
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+
+# ==================== SISTEMA ====================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# ==================== IDE/EDITORES ====================
 .vscode/
 .idea/
 *.swp
 *.swo
+*~
 
-# System files
-.DS_Store
-Thumbs.db
+# ==================== SISTEMA OPERATIVO ====================
+# Windows
+[Tt]humbs.db
+*.lnk
 
-# Logs
-logs/
-*.log
+# macOS
+*.DS_Store
+.AppleDouble
+.LSOverride
 
-# Runtime data
-*.pid
-*.seed
-*.pid.lock
-auth/key.json
-*.json
+# ==================== BACKUPS ====================
+*.backup
+*.bak
+*.old
+
+# ==================== TEMPORALES ====================
+*.tmp
+*.temp
+.cache/
+.tmp/
+
+# ==================== COVERAGE ====================
+coverage/
+.nyc_output/
+
+# ==================== PAQUETES ====================
+*.tgz
+*.tar.gz

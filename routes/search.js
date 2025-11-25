@@ -1,14 +1,15 @@
-// routes/search.js
-import express from 'express';
+// routes/search.js 
+import { Router } from "express";
 import {
   search_products,
   quick_search,
   get_search_suggestions,
   get_search_filters
-} from '../controllers/search_controller.js';
+} from "../controllers/search_controller.js";
 
-const router = express.Router();
+const router = Router();
 
+// Rutas principales de búsqueda
 router.get('/products', search_products);
 router.get('/quick', quick_search);
 router.get('/suggestions', get_search_suggestions);

@@ -1,6 +1,6 @@
-// routes/upload.js - VERSIÓN CORREGIDA
+// routes/upload.js 
 import express from 'express';
-// ✅ CORREGIR: Usar exportaciones nombradas
+
 import { 
   upload_product_image, 
   upload_user_avatar,
@@ -21,7 +21,7 @@ router.post(
   '/products',
   protect,
   restrict_to('admin'),
-  upload_product_image.single('image'), // ✅ Usar directamente
+  upload_product_image.single('image'), 
   handle_upload_error,
   upload_product_image_controller
 );
@@ -30,7 +30,7 @@ router.post(
 router.post(
   '/users/avatar',
   protect,
-  upload_user_avatar.single('avatar'), // ✅ Usar directamente
+  upload_user_avatar.single('avatar'), 
   handle_upload_error,
   upload_user_avatar_controller
 );

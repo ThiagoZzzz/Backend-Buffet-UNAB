@@ -3,15 +3,21 @@ import jwt from 'jsonwebtoken';
 import { user } from '../models/index.js';
 import bcrypt from 'bcryptjs';
 
-const sign_token = (id) => {
-  return jwt.sign({ id }, process.env.JWT_SECRET || 'buffet-secret', {
-    expiresIn: process.env.JWT_EXPIRES_IN || '30d'
-  });
+const sign_token = (user_data) => {
+  return jwt.sign(
+    {
+      id: user_data.id,
+      email: user_data.email,
+      role: user_data.role
+    },
+    process.env.JWT_SECRET || 'buffet-secret',
+    { expiresIn: process.env.JWT_EXPIRES_IN || '30d' }
+  );
 };
 
 export const register = async (req, res) => {
   try {
-    const { nombre, email, password, role } = req.body; // ✅ AGREGAR 'role'
+    const { nombre, email, password, role } = req.body; 
 
     // Verificar si el usuario ya existe
     const existing_user = await user.findOne({ where: { email } });
@@ -25,16 +31,17 @@ export const register = async (req, res) => {
     // Hash password
     const hashed_password = await bcrypt.hash(password, 12);
 
-    // ✅ PERMITIR ROL ADMIN - Cambiar esta línea:
+    // PERMITIR ROL ADMIN 
     const new_user = await user.create({
       nombre: nombre.trim(),
       email: email.toLowerCase().trim(),
       password: hashed_password,
-      role: role || 'user'  // ✅ Usar el rol del request o 'user' por defecto
+      role: role || 'user'  
     });
 
     // Generar token
-    const token = sign_token(new_user.id);
+    const token = sign_token(new_user);
+
 
     res.status(201).json({
       success: true,
@@ -83,7 +90,8 @@ export const login = async (req, res) => {
     }
 
     // Generar token
-    const token = sign_token(user_data.id);
+    const token = sign_token(user_data);
+
 
     res.json({
       success: true,
@@ -133,7 +141,7 @@ export const verify_token = async (req, res) => {
   }
 };
 
-// controllers/auth_controller.js - AGREGAR ESTA FUNCIÓN
+// controllers/auth_controller.js 
 export const change_password = async (req, res) => {
   try {
     const { current_password, new_password } = req.body;

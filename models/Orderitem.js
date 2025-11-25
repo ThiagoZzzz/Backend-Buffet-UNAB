@@ -40,10 +40,8 @@ const orderitem = (sequelize) => {
     }
   }, {
     tableName: 'order_items',
-    timestamps: true,
-    underscored: true,
-    createdAt: 'created_at',    // ✅ Explícito
-    updatedAt: 'updated_at'     // ✅ Explícito
+    timestamps: false,   
+    underscored: false    
   });
 
   orderitem_model.associate = (models) => {

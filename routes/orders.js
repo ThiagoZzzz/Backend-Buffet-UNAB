@@ -1,34 +1,3 @@
-<<<<<<< HEAD
-// orderRoutes.js
-
-import express from 'express';
-import * as orderController from '../controllers/orderController.js'; 
-
-const router = express.Router();
-
-// Crear un pedido
-router.route('/')
-  .post(orderController.createOrder)
-  .get(orderController.getAllOrders); 
-
-router.route('/:id')
-  .get(orderController.getOrderById)     
-  .put(orderController.updateOrderDetails)
-
-// Modificar items y recalcular el total
-router.route('/:id/items')
-  .patch(orderController.modifyOrderItems); 
-
-// Cambiar el ESTADO
-router.route('/:id/status')
-  .patch(orderController.updateOrderStatus);
-
-// Ruta para pedidos del usuario actual
-router.route('/user')
-  .get(orderController.getUserOrders);
-
-export default router;
-=======
 // routes/orders.js
 import express from 'express';
 import { 
@@ -42,14 +11,14 @@ import {
   get_user_order_stats
 } from '../controllers/order_controller.js';
 import { protect, restrict_to } from '../middleware/auth.js';
-import { validate_order } from '../middleware/validation.js'; // ✅ AGREGAR
+import { validate_order } from '../middleware/validation.js'; 
 
 const router = express.Router();
 
 // Rutas protegidas para usuarios
 router.use(protect);
 
-// ✅ INTEGRAR validación en crear orden
+// INTEGRAR validación en crear orden
 router.post('/', validate_order, create_order);
 
 // Obtener órdenes del usuario autenticado
@@ -65,4 +34,3 @@ router.put('/:id/status', update_order_status);
 router.delete('/:id', delete_order);
 
 export default router;
->>>>>>> main

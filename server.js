@@ -1,4 +1,4 @@
-// server.js - VERSIÓN CORREGIDA
+// server.js 
 import dotenv from 'dotenv';
 dotenv.config();
 
@@ -7,7 +7,7 @@ import cors from 'cors';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
-// ✅ RUTAS CORREGIDAS - sin punto extra
+//  RUTAS  
 import sequelize from './config/database.js';
 import { error_handler, not_found } from './middleware/error_handler.js';
 
@@ -26,7 +26,6 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
-
 
 // ==================== CONFIGURACIÓN ====================
 const PORT = process.env.PORT || 5001;
@@ -59,14 +58,14 @@ app.use((req, res, next) => {
 // Servir archivos estáticos
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-// Middleware para verificar conexión a BD
+// MIDDLEWARE CORREGIDO: Verificación de conexión a BD
 app.use(async (req, res, next) => {
   try {
     await sequelize.authenticate();
     next();
   } catch (error) {
     console.error('❌ Error de conexión a BD:', error);
-    res.status(503).json({
+    return res.status(503).json({
       success: false,
       message: 'Servicio de base de datos no disponible',
       ...(NODE_ENV === 'development' && { error: error.message })
@@ -74,15 +73,93 @@ app.use(async (req, res, next) => {
   }
 });
 
-// Middleware de logging (solo en desarrollo)
+// Middleware de logging 
 if (NODE_ENV === 'development') {
   app.use((req, res, next) => {
     console.log(`${new Date().toISOString()} - ${req.method} ${req.originalUrl}`);
     next();
   });
 }
-// Servir archivos estáticos
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
+// ==================== ENDPOINTS DEBUG ====================
+// Debug: Verificar estado del servidor y rutas
+app.get('/api/debug/routes', (req, res) => {
+  const routes = [];
+  
+  app._router.stack.forEach(middleware => {
+    if (middleware.route) {
+      // Rutas directas
+      routes.push({
+        path: middleware.route.path,
+        methods: Object.keys(middleware.route.methods)
+      });
+    } else if (middleware.name === 'router') {
+      // Rutas de router
+      const routerPath = middleware.regexp.toString().replace(/^\/\^\\\//, '').replace(/\\\/\?\(\?=\\\/\|\$\)\/\w*$/, '');
+      middleware.handle.stack.forEach(handler => {
+        if (handler.route) {
+          const route = handler.route;
+          routes.push({
+            path: routerPath + route.path,
+            methods: Object.keys(route.methods)
+          });
+        }
+      });
+    }
+  });
+  
+  res.json({
+    success: true,
+    total_routes: routes.length,
+    routes: routes.filter(route => route.path.includes('/api/'))
+  });
+});
+
+// Debug: Endpoint temporal de admin sin auth
+app.get('/api/admin/test', (req, res) => {
+  res.json({
+    success: true,
+    message: '✅ Endpoint de admin funciona!',
+    timestamp: new Date().toISOString(),
+    user: req.user || 'No autenticado'
+  });
+});
+
+// Debug: Verificar autenticación
+app.get('/api/debug/auth-check', async (req, res) => {
+  try {
+    const token = req.headers.authorization?.replace('Bearer ', '');
+    
+    if (!token) {
+      return res.json({ 
+        authenticated: false,
+        message: 'No token provided' 
+      });
+    }
+
+    const jwt = await import('jsonwebtoken');
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback-secret');
+    
+    const { user } = await import('./models/index.js');
+    const userData = await user.findByPk(decoded.id);
+    
+    res.json({
+      authenticated: true,
+      user: {
+        id: userData.id,
+        nombre: userData.nombre,
+        email: userData.email,
+        role: userData.role,
+        is_admin: userData.role === 'admin'
+      }
+    });
+  } catch (error) {
+    res.json({
+      authenticated: false,
+      error: error.message
+    });
+  }
+});
 
 // ==================== RUTAS BÁSICAS ====================
 app.get('/', (req, res) => {
@@ -102,7 +179,12 @@ app.get('/', (req, res) => {
       admin: '/api/admin',
       categories: '/api/categories',
       search: '/api/search',
-      upload: '/api/upload' // ← AGREGAR ESTE ENDPOINT
+      upload: '/api/upload',
+      debug: {
+        'GET /api/debug/routes': 'Ver todas las rutas registradas',
+        'GET /api/admin/test': 'Test endpoint de admin',
+        'GET /api/debug/auth-check': 'Verificar autenticación'
+      }
     },
     documentation: 'Consulta /api/health para más información'
   });
@@ -168,7 +250,7 @@ app.use('/api/cart', cart_routes);
 app.use('/api/admin', admin_routes);
 app.use('/api/categories', categories_routes);
 app.use('/api/search', search_routes);
-app.use('/api/upload', upload_routes); // ← AGREGAR ESTA RUTA
+app.use('/api/upload', upload_routes); 
 
 // ==================== DOCUMENTACIÓN DE ENDPOINTS ====================
 app.get('/api/endpoints', (req, res) => {
@@ -254,22 +336,29 @@ app.get('/api/endpoints', (req, res) => {
         'GET  /api/search/filters': 'Filtros disponibles (público)'
       },
       
-      // UPLOAD (NUEVA SECCIÓN) ← AGREGAR ESTA SECCIÓN
+      // UPLOAD
       upload: {
         'POST /api/upload/products': 'Subir imagen de producto (solo admin)',
         'POST /api/upload/users/avatar': 'Subir avatar de usuario (requiere auth)',
         'DELETE /api/upload/:type/:filename': 'Eliminar archivo (requiere auth/admin)',
         'GET  /api/upload/:type/:filename': 'Obtener información de archivo (público)'
+      },
+      
+      // DEBUG (TEMPORAL)
+      debug: {
+        'GET  /api/debug/routes': 'Ver todas las rutas registradas',
+        'GET  /api/admin/test': 'Test endpoint de admin',
+        'GET  /api/debug/auth-check': 'Verificar autenticación'
       }
     }
   });
 });
 
 // ==================== MANEJO DE ERRORES ====================
-// 404 - Rutas no encontradas (DEBE IR DESPUÉS DE TODAS LAS RUTAS)
+// 404 - Rutas no encontradas 
 app.use(not_found);
 
-// Manejo general de errores (SIEMPRE AL FINAL)
+// Manejo general de errores 
 app.use(error_handler);
 
 // ==================== INICIAR SERVIDOR ====================
@@ -278,8 +367,8 @@ const start_server = async () => {
     // Sincronizar base de datos
     console.log('🔄 Sincronizando base de datos...');
     await sequelize.sync({ 
-      alter: false,  // ✅ CAMBIAR a true para crear columnas
-      force: false  // ✅ NO borrar datos
+      alter: false,
+      force: false
     });
 
     // Iniciar servidor
@@ -293,7 +382,7 @@ const start_server = async () => {
       console.log('🎯 ================================================\n');
       
       console.log('📋 Endpoints principales:');
-      console.log('   🌐 GET  /                    - Información del API');
+      console.log('   🌐 GET  /api                    - Información del API');
       console.log('   ❤️  GET  /api/health          - Estado del servidor');
       console.log('   📖 GET  /api/endpoints        - Documentación completa');
       console.log('   👤 POST /api/auth/register    - Registro de usuario');
@@ -317,7 +406,11 @@ const start_server = async () => {
       console.log('   📦 PUT  /api/orders/:id/cancel- Cancelar pedido (auth)');
       console.log('   📊 GET  /api/admin/dashboard  - Dashboard admin');
       console.log('   📤 POST /api/upload/products  - Subir imagen producto (admin)');
-      console.log('   📤 POST /api/upload/users/avatar - Subir avatar (auth)\n');
+      console.log('   📤 POST /api/upload/users/avatar - Subir avatar (auth)');
+      console.log('\n🔧 Endpoints Debug:');
+      console.log('   🛠️  GET  /api/debug/routes    - Ver rutas registradas');
+      console.log('   🧪 GET  /api/admin/test      - Test admin');
+      console.log('   🔐 GET  /api/debug/auth-check - Verificar token\n');
 
       console.log('⚡ Servidor listo para recibir peticiones...\n');
     });

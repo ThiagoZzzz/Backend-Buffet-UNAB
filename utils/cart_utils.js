@@ -1,14 +1,16 @@
-export const calculateCartTotal = (items) => {
+//utilities/cart_utils.js
+import { Product } from '../models/index.js'; 
+export const calculate_cart_total = (items) => {
   return items.reduce((total, item) => {
-    const price = item.promocion && item.precioPromocion 
-      ? item.precioPromocion 
+    const price = item.promocion && item.precio_promocion 
+      ? item.precio_promocion 
       : item.precio;
     return total + (price * item.cantidad);
   }, 0);
 };
 
-export const validateCartItems = async (items) => {
-  const validatedItems = [];
+export const validate_cart_items = async (items) => {
+  const validated_items = [];
   let total = 0;
 
   for (const item of items) {
@@ -22,19 +24,19 @@ export const validateCartItems = async (items) => {
       throw new Error(`Producto no disponible: ${product.nombre}`);
     }
 
-    const itemPrice = product.promocion && product.precioPromocion 
-      ? product.precioPromocion 
+    const item_price = product.promocion && product.precio_promocion 
+      ? product.precio_promocion 
       : product.precio;
 
-    validatedItems.push({
+    validated_items.push({
       producto: product._id,
       nombre: product.nombre,
-      precio: itemPrice,
+      precio: item_price,
       cantidad: item.cantidad
     });
 
-    total += itemPrice * item.cantidad;
+    total += item_price * item.cantidad;
   }
 
-  return { validatedItems, total };
+  return { validated_items, total };
 };

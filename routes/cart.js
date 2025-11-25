@@ -15,7 +15,7 @@ const router = express.Router();
 // Todas las rutas protegidas
 router.use(protect);
 
-// Definición de rutas (SOLO esto)
+// Definición de rutas 
 router.post('/validate', validate_cart);
 router.post('/add', add_to_cart);
 router.post('/remove', remove_from_cart);

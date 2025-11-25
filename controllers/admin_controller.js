@@ -1,57 +1,187 @@
-// controllers/admin_controller.js
-import { order, user, product, category, orderitem } from '../models/index.js'; // ✅ Agregar orderitem
+// controllers/admin_controller.js 
+import { order, user, product, category, orderitem } from '../models/index.js';
 import { Op } from 'sequelize';
 
 export const get_dashboard_stats = async (req, res) => {
   try {
-    const [
-      total_users,
-      total_products,
-      total_orders,
-      revenue,
-      pending_orders,
-      delivered_orders
-    ] = await Promise.all([
-      user.count(),
-      product.count(),
-      order.count(),
-      order.sum('total', { where: { estado: 'entregado' } }),
-      order.count({ where: { estado: 'pendiente' } }),
-      order.count({ where: { estado: 'entregado' } })
-    ]);
+    console.log('📊 === INICIO DASHBOARD DEBUG ===');
+    console.log('👤 Usuario:', req.user?.id, req.user?.nombre, req.user?.role);
 
-    // Pedidos recientes con más información
-    const recent_orders = await order.findAll({
-      include: [{
-        model: user,
-        as: 'user',
-        attributes: ['id', 'nombre', 'email']
-      }],
-      order: [['created_at', 'DESC']],
-      limit: 10
-    });
+    // Verificar que el usuario es admin
+    if (!req.user || req.user.role !== 'admin') {
+      console.log('❌ Usuario no es admin:', req.user?.role);
+      return res.status(403).json({
+        success: false,
+        message: 'No tienes permisos para acceder al dashboard'
+      });
+    }
 
-    res.json({
-      success: true,
-      stats: {
+    console.log('🔍 Ejecutando consultas paralelas...');
+
+    // Obtener estadísticas en paralelo con manejo de errores individual
+    let total_users, total_products, total_orders, revenue, pending_orders, delivered_orders;
+
+    try {
+      [
         total_users,
         total_products,
         total_orders,
+        revenue,
         pending_orders,
-        delivered_orders,
-        revenue: revenue || 0,
-        average_order_value: total_orders > 0 ? (revenue || 0) / delivered_orders : 0 // ✅ Corregido: usar delivered_orders
-      },
-      recent_orders
+        delivered_orders
+      ] = await Promise.all([
+        user.count().catch(err => { console.error('❌ Error contando usuarios:', err.message); return 0; }),
+        product.count().catch(err => { console.error('❌ Error contando productos:', err.message); return 0; }),
+        order.count().catch(err => { console.error('❌ Error contando pedidos:', err.message); return 0; }),
+        order.sum('total', { 
+          where: { 
+            estado: { 
+              [Op.in]: ['entregado', 'completado', 'completed', 'delivered'] 
+            } 
+          } 
+        }).catch(err => { console.error('❌ Error sumando revenue:', err.message); return 0; }),
+        order.count({ 
+          where: { 
+            estado: { 
+              [Op.in]: ['pendiente', 'pending', 'procesando', 'processing'] 
+            } 
+          } 
+        }).catch(err => { console.error('❌ Error contando pendientes:', err.message); return 0; }),
+        order.count({ 
+          where: { 
+            estado: { 
+              [Op.in]: ['entregado', 'completado', 'completed', 'delivered'] 
+            } 
+          } 
+        }).catch(err => { console.error('❌ Error contando entregados:', err.message); return 0; })
+      ]);
+    } catch (error) {
+      console.error('❌ Error en consultas paralelas:', error);
+      // Continuar con valores por defecto
+      total_users = total_products = total_orders = revenue = pending_orders = delivered_orders = 0;
+    }
+
+    console.log('📊 Resultados consultas:', {
+      total_users, total_products, total_orders, revenue, pending_orders, delivered_orders
     });
+
+    // Pedidos recientes con manejo de error
+    let recent_orders = [];
+    try {
+      console.log('🔍 Buscando pedidos recientes...');
+      recent_orders = await order.findAll({
+        include: [{
+          model: user,
+          as: 'user',
+          attributes: ['id', 'nombre', 'email']
+        }],
+        order: [['createdAt', 'DESC']],
+        limit: 10
+      });
+      console.log(`✅ Encontrados ${recent_orders.length} pedidos recientes`);
+    } catch (error) {
+      console.error('❌ Error obteniendo pedidos recientes:', error.message);
+      recent_orders = [];
+    }
+
+    // Productos más vendidos con manejo de error
+    let top_products = [];
+    try {
+      console.log('🔍 Buscando productos populares...');
+      top_products = await product.findAll({
+        order: [['vendidos', 'DESC']],
+        limit: 5,
+        attributes: ['id', 'nombre', 'precio', 'vendidos', 'imagen', 'categoria']
+      });
+      console.log(`✅ Encontrados ${top_products.length} productos populares`);
+    } catch (error) {
+      console.error('❌ Error obteniendo productos populares:', error.message);
+      top_products = [];
+    }
+
+    // Ingresos del mes actual con manejo de error
+    let monthly_revenue = 0;
+    try {
+      console.log('🔍 Calculando ingresos del mes...');
+      const startOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+      monthly_revenue = await order.sum('total', {
+        where: {
+          createdAt: { [Op.gte]: startOfMonth },
+          estado: { [Op.in]: ['entregado', 'completado', 'completed', 'delivered'] }
+        }
+      }) || 0;
+      console.log(`✅ Ingresos del mes: ${monthly_revenue}`);
+    } catch (error) {
+      console.error('❌ Error calculando ingresos del mes:', error.message);
+      monthly_revenue = 0;
+    }
+
+    
+    const response = {
+      success: true,
+      message: 'Dashboard cargado exitosamente',
+      data: {
+        estadisticas: {
+          total_usuarios: total_users || 0,
+          total_productos: total_products || 0,
+          total_pedidos: total_orders || 0,
+          pedidos_pendientes: pending_orders || 0,
+          pedidos_entregados: delivered_orders || 0,
+          ingresos_totales: revenue || 0,
+          ingresos_mes: monthly_revenue || 0,
+          valor_promedio_pedido: delivered_orders > 0 ? (revenue || 0) / delivered_orders : 0
+        },
+        pedidos_recientes: recent_orders.map(order => ({
+          id: order.id,
+          total: order.total,
+          estado: order.estado,
+          fecha: order.createdAt,
+          usuario: order.user ? {
+            id: order.user.id,
+            nombre: order.user.nombre,
+            email: order.user.email
+          } : { nombre: 'Cliente', email: 'N/A' }
+        })),
+        productos_populares: top_products.map(prod => ({
+          id: prod.id,
+          nombre: prod.nombre,
+          precio: prod.precio,
+          vendidos: prod.vendidos || 0,
+          imagen: prod.imagen,
+          categoria: prod.categoria
+        }))
+      },
+      timestamp: new Date().toISOString(),
+      debug: {
+        user_authenticated: !!req.user,
+        user_role: req.user?.role,
+        queries_executed: true
+      }
+    };
+
+    console.log('✅ Dashboard generado exitosamente');
+    res.json(response);
+
   } catch (error) {
-    console.error('Error al cargar estadísticas del dashboard:', error);
+    console.error('❌ ERROR CRÍTICO en dashboard admin:', error);
+    console.error('Stack trace:', error.stack);
+    
     res.status(500).json({
       success: false,
-      message: 'Error al cargar estadísticas del dashboard'
+      message: 'Error interno al cargar el dashboard',
+      error: process.env.NODE_ENV === 'development' ? {
+        message: error.message,
+        stack: error.stack
+      } : undefined,
+      debug: {
+        user_authenticated: !!req.user,
+        user_role: req.user?.role,
+        timestamp: new Date().toISOString()
+      }
     });
   }
 };
+
 
 export const get_recent_orders = async (req, res) => {
   try {
@@ -65,7 +195,7 @@ export const get_recent_orders = async (req, res) => {
         as: 'user',
         attributes: ['id', 'nombre', 'email', 'telefono']
       }],
-      order: [['created_at', 'DESC']],
+      order: [['createdAt', 'DESC']],
       limit: parsed_limit,
       offset: offset
     });
@@ -94,7 +224,7 @@ export const get_all_users = async (req, res) => {
       limit = 10, 
       search, 
       role,
-      sort_by = 'created_at',
+      sort_by = 'createdAt',
       sort_order = 'DESC'
     } = req.query;
 
@@ -145,65 +275,6 @@ export const get_all_users = async (req, res) => {
   }
 };
 
-export const update_user_role = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { role } = req.body;
-
-    // ✅ VALIDACIÓN: ID debe ser número
-    if (!id || isNaN(parseInt(id))) {
-      return res.status(400).json({
-        success: false,
-        message: 'ID de usuario inválido'
-      });
-    }
-
-    // ✅ VALIDACIÓN: Rol válido
-    if (!role || !['user', 'admin'].includes(role)) {
-      return res.status(400).json({
-        success: false,
-        message: 'Rol no válido. Debe ser "user" o "admin"'
-      });
-    }
-
-    const user_data = await user.findByPk(id);
-    
-    if (!user_data) {
-      return res.status(404).json({
-        success: false,
-        message: 'Usuario no encontrado'
-      });
-    }
-
-    // ✅ VALIDACIÓN: No permitir cambiar el propio rol
-    if (parseInt(id) === parseInt(req.user.id)) {
-      return res.status(400).json({
-        success: false,
-        message: 'No puedes cambiar tu propio rol'
-      });
-    }
-
-    await user_data.update({ role });
-
-    // Obtener usuario actualizado sin password
-    const updated_user = await user.findByPk(id, {
-      attributes: { exclude: ['password'] }
-    });
-
-    res.json({
-      success: true,
-      message: `Rol de usuario actualizado a: ${role}`,
-      user: updated_user
-    });
-  } catch (error) {
-    console.error('Error al actualizar rol de usuario:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error al actualizar rol de usuario'
-    });
-  }
-};
-
 export const get_all_products = async (req, res) => {
   try {
     const { 
@@ -235,11 +306,9 @@ export const get_all_products = async (req, res) => {
       ];
     }
 
-    // ✅ CORREGIDO: Si no tienes relación con category, usar solo atributos
     const { count, rows: products } = await product.findAndCountAll({
       where: where_clause,
-      // ❌ QUITAR include de category si no existe la relación
-      order: [['created_at', 'DESC']],
+      order: [['createdAt', 'DESC']],
       limit: parsed_limit,
       offset: offset
     });
@@ -266,23 +335,23 @@ export const get_all_products = async (req, res) => {
   }
 };
 
-// Función adicional: Obtener estadísticas avanzadas (VERSIÓN CORREGIDA)
 export const get_advanced_stats = async (req, res) => {
   try {
-    // Estadísticas de órdenes por mes (últimos 6 meses) - VERSIÓN CORREGIDA
+    console.log('📈 Solicitando estadísticas avanzadas...');
+
+    // Estadísticas de órdenes por mes (últimos 6 meses)
     const six_months_ago = new Date();
     six_months_ago.setMonth(six_months_ago.getMonth() - 6);
 
-    // ✅ CORREGIDO: Usar funciones de Sequelize compatibles
     const monthly_orders = await order.findAll({
       where: {
-        created_at: {
+        createdAt: {
           [Op.gte]: six_months_ago
         }
       },
       attributes: [
-        [order.sequelize.fn('YEAR', order.sequelize.col('created_at')), 'year'],
-        [order.sequelize.fn('MONTH', order.sequelize.col('created_at')), 'month'],
+        [order.sequelize.fn('YEAR', order.sequelize.col('createdAt')), 'year'],
+        [order.sequelize.fn('MONTH', order.sequelize.col('createdAt')), 'month'],
         [order.sequelize.fn('COUNT', order.sequelize.col('id')), 'order_count'],
         [order.sequelize.fn('SUM', order.sequelize.col('total')), 'revenue']
       ],
@@ -291,7 +360,7 @@ export const get_advanced_stats = async (req, res) => {
       raw: true
     });
 
-    // ✅ CORREGIDO: Productos más vendidos usando orderitems
+    // Productos más vendidos
     const top_products_data = await orderitem.findAll({
       attributes: [
         'product_id',
@@ -305,10 +374,10 @@ export const get_advanced_stats = async (req, res) => {
       group: ['product_id'],
       order: [[orderitem.sequelize.fn('SUM', orderitem.sequelize.col('cantidad')), 'DESC']],
       limit: 10,
-      raw: false // ✅ Importante para poder acceder a las relaciones
+      raw: false
     });
 
-    // ✅ CORREGIDO: Usuarios más activos
+    // Usuarios más activos
     const top_users_data = await order.findAll({
       attributes: [
         'user_id',
@@ -328,6 +397,7 @@ export const get_advanced_stats = async (req, res) => {
 
     res.json({
       success: true,
+      message: 'Estadísticas avanzadas cargadas exitosamente',
       stats: {
         monthly_orders: monthly_orders.map(item => ({
           period: `${item.year}-${String(item.month).padStart(2, '0')}`,
@@ -350,12 +420,11 @@ export const get_advanced_stats = async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Error al cargar estadísticas avanzadas:', error);
+    console.error('❌ Error al cargar estadísticas avanzadas:', error);
     res.status(500).json({
       success: false,
       message: 'Error al cargar estadísticas avanzadas',
-      // Solo en desarrollo mostrar el error completo
-      ...(process.env.NODE_ENV === 'development' && { error: error.message })
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
 };

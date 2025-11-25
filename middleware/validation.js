@@ -25,7 +25,7 @@ export const validate_register = [
     console.log('🔍 ERRORES ENCONTRADOS:', errors.array());
     if (!errors.isEmpty()) {
       const formattedErrors = errors.array().map(err => {
-        console.log('💥 ERROR OBJECT:', err); // ← Ver estructura completa del error
+        console.log('💥 ERROR OBJECT:', err); 
         return {
           field: err.path || err.param || 'unknown',
           message: err.msg

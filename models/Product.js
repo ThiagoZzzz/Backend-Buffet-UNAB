@@ -1,4 +1,4 @@
-// models/product.js (versión más explícita)
+// models/product.js
 import { DataTypes } from 'sequelize';
 
 const product = (sequelize) => {
@@ -79,9 +79,7 @@ const product = (sequelize) => {
   }, {
     tableName: 'products',
     timestamps: false,
-    underscored: true,
-    createdAt: false,    // ✅ Explícito
-    updatedAt: false     // ✅ Explícito
+    underscored: true
   });
 
   product_model.associate = (models) => {

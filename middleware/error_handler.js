@@ -41,7 +41,7 @@ export const error_handler = (err, req, res, next) => {
     const field = err.errors[0]?.path || 'campo';
     error = {
       message: `Ya existe un registro con este ${field}`,
-      status_code: 409, // Conflict es más apropiado
+      status_code: 409, 
       field: process.env.NODE_ENV === 'development' ? field : undefined
     };
   }
@@ -63,14 +63,14 @@ export const error_handler = (err, req, res, next) => {
   if (err.name === 'SequelizeConnectionError' || err.name === 'SequelizeConnectionRefusedError') {
     error = {
       message: 'Error de conexión con la base de datos. Intente nuevamente.',
-      status_code: 503 // Service Unavailable
+      status_code: 503 
     };
   }
 
   if (err.name === 'SequelizeTimeoutError') {
     error = {
       message: 'Timeout en la operación de base de datos',
-      status_code: 408 // Request Timeout
+      status_code: 408 
     };
   }
 
@@ -93,7 +93,7 @@ export const error_handler = (err, req, res, next) => {
   if (err.code === 'LIMIT_FILE_SIZE') {
     error = {
       message: 'El archivo es demasiado grande',
-      status_code: 413 // Payload Too Large
+      status_code: 413 
     };
   }
 
@@ -135,7 +135,7 @@ export const error_handler = (err, req, res, next) => {
 
   // ==================== CUSTOM ERRORS ====================
   if (err.status_code && err.message) {
-    // Si ya es un error con estructura, usarlo directamente
+    
     error = {
       message: err.message,
       status_code: err.status_code
@@ -153,7 +153,7 @@ export const error_handler = (err, req, res, next) => {
     })
   };
 
-  // Headers ya enviados? (usar next si es así)
+  // Headers 
   if (res.headersSent) {
     return next(err);
   }

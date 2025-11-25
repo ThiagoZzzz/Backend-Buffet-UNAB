@@ -8,7 +8,7 @@ const order = (sequelize) => {
       primaryKey: true,
       autoIncrement: true
     },
-    user_id: {  // ✅ AGREGAR ESTE CAMPO ESENCIAL
+    user_id: {  
       type: DataTypes.INTEGER,
       allowNull: false,
       references: {
@@ -63,13 +63,13 @@ const order = (sequelize) => {
   }, {
     tableName: 'orders',
     timestamps: true,
-    underscored: true,  // ✅ IMPORTANTE: Para usar created_at en lugar de createdAt
+    underscored: true,  
     indexes: [
       {
-        fields: ['user_id']  // ✅ Índice para mejor performance
+        fields: ['user_id']  
       },
       {
-        fields: ['estado']   // ✅ Índice para búsquedas por estado
+        fields: ['estado']   
       }
     ]
   });
@@ -82,7 +82,7 @@ const order = (sequelize) => {
     order_model.hasMany(models.orderitem, { 
       foreignKey: 'order_id',
       as: 'items',
-      onDelete: 'CASCADE'  // ✅ Cuando se elimine order, se eliminan sus items
+      onDelete: 'CASCADE' 
     });
   };
 

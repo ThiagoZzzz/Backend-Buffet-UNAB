@@ -251,7 +251,7 @@ export const delete_category = async (req, res) => {
   }
 };
 
-// Desactivar categoría (admin) - alternativa a eliminar
+// Desactivar categoría (admin) 
 export const deactivate_category = async (req, res) => {
   try {
     const { id } = req.params;

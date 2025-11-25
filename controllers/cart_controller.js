@@ -1,4 +1,4 @@
-// controllers/cart_controller.js
+// controllers/cart_controller.js - 
 import { product, category } from '../models/index.js';
 import { Op } from 'sequelize';
 
@@ -6,6 +6,9 @@ export const validate_cart = async (req, res) => {
   try {
     const { items } = req.body;
     
+    console.log('🛒 DEBUG validate_cart - Body recibido:', req.body);
+    console.log('🛒 DEBUG validate_cart - Items:', items);
+
     // Validar que items existe y es un array
     if (!items || !Array.isArray(items) || items.length === 0) {
       return res.status(400).json({
@@ -20,15 +23,17 @@ export const validate_cart = async (req, res) => {
     let total_descuento = 0;
     let errors = [];
 
-    // Usar Promise.all para consultas paralelas (más eficiente)
+    // Usar Promise.all para consultas paralelas 
     const validation_promises = items.map(async (item) => {
+      console.log(`🔍 Validando producto: ${item.producto}, cantidad: ${item.cantidad}`);
+
       // Validar cantidad mínima
       if (!item.cantidad || item.cantidad < 1) {
         errors.push(`La cantidad para el producto ${item.producto} debe ser al menos 1`);
         return null;
       }
 
-      // Validar cantidad máxima (opcional)
+      // Validar cantidad máxima 
       if (item.cantidad > 50) {
         errors.push(`La cantidad para el producto ${item.producto} no puede exceder 50 unidades`);
         return null;
@@ -38,7 +43,7 @@ export const validate_cart = async (req, res) => {
         include: [{
           model: category,
           as: 'category',
-          attributes: ['id', 'nombre', 'slug'],
+          attributes: ['id', 'nombre', 'slug', 'activa'],
           required: false
         }]
       });
@@ -53,11 +58,9 @@ export const validate_cart = async (req, res) => {
         return null;
       }
 
-      // Validar que la categoría esté activa (si existe relación)
-      if (product_data.category && !product_data.category.activa) {
-        errors.push(`La categoría del producto ${product_data.nombre} no está disponible`);
-        return null;
-      }
+    
+
+      console.log(`✅ Producto válido: ${product_data.nombre}, Categoría: ${product_data.category?.nombre}, Activa: ${product_data.category?.activa}`);
 
       const price = product_data.promocion && product_data.precio_promocion 
         ? product_data.precio_promocion 
@@ -78,6 +81,7 @@ export const validate_cart = async (req, res) => {
         categoria: product_data.categoria,
         category_id: product_data.category_id,
         category_nombre: product_data.category?.nombre,
+        category_activa: product_data.category?.activa, 
         promocion: product_data.promocion,
         precio_promocion: product_data.precio_promocion,
         disponible: product_data.disponible,
@@ -113,13 +117,15 @@ export const validate_cart = async (req, res) => {
       ahorro_total: total_descuento
     };
 
-    // Si hay errores, retornarlos
+    console.log(`📊 Resumen: ${validated_items.length} items válidos, ${errors.length} errores`);
+
+    
     if (errors.length > 0) {
       return res.status(400).json({
         success: false,
         message: 'Errores en la validación del carrito',
         errors: errors,
-        validated_items, // Retornar items válidos también
+        validated_items, 
         resumen
       });
     }
@@ -131,7 +137,7 @@ export const validate_cart = async (req, res) => {
       resumen
     });
   } catch (error) {
-    console.error('Error al validar carrito:', error);
+    console.error('❌ Error al validar carrito:', error);
     res.status(500).json({
       success: false,
       message: 'Error interno al validar el carrito'
@@ -142,6 +148,8 @@ export const validate_cart = async (req, res) => {
 export const add_to_cart = async (req, res) => {
   try {
     const { producto_id, cantidad = 1 } = req.body;
+
+    console.log('🛒 DEBUG add_to_cart - Body:', req.body);
 
     // Validaciones básicas
     if (!producto_id) {
@@ -169,7 +177,7 @@ export const add_to_cart = async (req, res) => {
       include: [{
         model: category,
         as: 'category',
-        attributes: ['id', 'nombre', 'slug'],
+        attributes: ['id', 'nombre', 'slug', 'activa'],
         required: false
       }]
     });
@@ -188,14 +196,7 @@ export const add_to_cart = async (req, res) => {
       });
     }
 
-    // Validar categoría activa
-    if (product_data.category && !product_data.category.activa) {
-      return res.status(400).json({
-        success: false,
-        message: `La categoría del producto ${product_data.nombre} no está disponible`
-      });
-    }
-
+    
     const price = product_data.promocion && product_data.precio_promocion 
       ? product_data.precio_promocion 
       : product_data.precio;
@@ -214,6 +215,7 @@ export const add_to_cart = async (req, res) => {
       categoria: product_data.categoria,
       category_id: product_data.category_id,
       category_nombre: product_data.category?.nombre,
+      category_activa: product_data.category?.activa,
       promocion: product_data.promocion,
       precio_promocion: product_data.precio_promocion,
       disponible: product_data.disponible,
@@ -231,13 +233,123 @@ export const add_to_cart = async (req, res) => {
       item: cart_item
     });
   } catch (error) {
-    console.error('Error al agregar al carrito:', error);
+    console.error('❌ Error al agregar al carrito:', error);
     res.status(500).json({
       success: false,
       message: 'Error al agregar producto al carrito'
     });
   }
 };
+
+export const update_cart_item = async (req, res) => {
+  try {
+    const { producto_id, cantidad } = req.body;
+
+    console.log('🛒 DEBUG update_cart_item - Body:', req.body);
+
+    if (!producto_id || cantidad === undefined) {
+      return res.status(400).json({
+        success: false,
+        message: 'ID de producto y cantidad requeridos'
+      });
+    }
+
+    if (cantidad < 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'La cantidad no puede ser negativa'
+      });
+    }
+
+    if (cantidad > 50) {
+      return res.status(400).json({
+        success: false,
+        message: 'La cantidad no puede exceder 50 unidades'
+      });
+    }
+
+    const product_data = await product.findByPk(producto_id, {
+      include: [{
+        model: category,
+        as: 'category',
+        attributes: ['id', 'nombre', 'slug', 'activa'],
+        required: false
+      }]
+    });
+    
+    if (!product_data) {
+      return res.status(404).json({
+        success: false,
+        message: 'Producto no encontrado'
+      });
+    }
+
+    if (cantidad === 0) {
+      return res.json({
+        success: true,
+        message: `Producto ${product_data.nombre} removido del carrito`,
+        action: 'removed',
+        producto_removido: {
+          id: product_data.id,
+          nombre: product_data.nombre
+        }
+      });
+    }
+
+    if (!product_data.disponible) {
+      return res.status(400).json({
+        success: false,
+        message: `El producto ${product_data.nombre} no está disponible`
+      });
+    }
+
+    
+
+    const price = product_data.promocion && product_data.precio_promocion 
+      ? product_data.precio_promocion 
+      : product_data.precio;
+
+    const subtotal_original = product_data.precio * cantidad;
+    const descuento = product_data.promocion ? subtotal_original - (price * cantidad) : 0;
+
+    const updated_item = {
+      producto: product_data.id,
+      nombre: product_data.nombre,
+      descripcion: product_data.descripcion,
+      precio: price,
+      precio_original: product_data.precio,
+      cantidad: cantidad,
+      imagen: product_data.imagen,
+      categoria: product_data.categoria,
+      category_id: product_data.category_id,
+      category_nombre: product_data.category?.nombre,
+      category_activa: product_data.category?.activa,
+      promocion: product_data.promocion,
+      precio_promocion: product_data.precio_promocion,
+      disponible: product_data.disponible,
+      destacado: product_data.destacado,
+      subtotal: price * cantidad,
+      subtotal_original: subtotal_original,
+      descuento: descuento,
+      ahorro_porcentaje: product_data.promocion ? 
+        Math.round(((product_data.precio - price) / product_data.precio) * 100) : 0
+    };
+
+    res.json({
+      success: true,
+      message: 'Cantidad actualizada en el carrito',
+      item: updated_item,
+      action: 'updated'
+    });
+  } catch (error) {
+    console.error('❌ Error al actualizar item del carrito:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error al actualizar producto en el carrito'
+    });
+  }
+};
+
 
 export const remove_from_cart = async (req, res) => {
   try {
@@ -270,122 +382,10 @@ export const remove_from_cart = async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Error al remover del carrito:', error);
+    console.error('❌ Error al remover del carrito:', error);
     res.status(500).json({
       success: false,
       message: 'Error al remover producto del carrito'
-    });
-  }
-};
-
-export const update_cart_item = async (req, res) => {
-  try {
-    const { producto_id, cantidad } = req.body;
-
-    if (!producto_id || cantidad === undefined) {
-      return res.status(400).json({
-        success: false,
-        message: 'ID de producto y cantidad requeridos'
-      });
-    }
-
-    if (cantidad < 0) {
-      return res.status(400).json({
-        success: false,
-        message: 'La cantidad no puede ser negativa'
-      });
-    }
-
-    if (cantidad > 50) {
-      return res.status(400).json({
-        success: false,
-        message: 'La cantidad no puede exceder 50 unidades'
-      });
-    }
-
-    const product_data = await product.findByPk(producto_id, {
-      include: [{
-        model: category,
-        as: 'category',
-        attributes: ['id', 'nombre', 'slug'],
-        required: false
-      }]
-    });
-    
-    if (!product_data) {
-      return res.status(404).json({
-        success: false,
-        message: 'Producto no encontrado'
-      });
-    }
-
-    if (cantidad === 0) {
-      return res.json({
-        success: true,
-        message: `Producto ${product_data.nombre} removido del carrito`,
-        action: 'removed',
-        producto_removido: {
-          id: product_data.id,
-          nombre: product_data.nombre
-        }
-      });
-    }
-
-    if (!product_data.disponible) {
-      return res.status(400).json({
-        success: false,
-        message: `El producto ${product_data.nombre} no está disponible`
-      });
-    }
-
-    // Validar categoría activa
-    if (product_data.category && !product_data.category.activa) {
-      return res.status(400).json({
-        success: false,
-        message: `La categoría del producto ${product_data.nombre} no está disponible`
-      });
-    }
-
-    const price = product_data.promocion && product_data.precio_promocion 
-      ? product_data.precio_promocion 
-      : product_data.precio;
-
-    const subtotal_original = product_data.precio * cantidad;
-    const descuento = product_data.promocion ? subtotal_original - (price * cantidad) : 0;
-
-    const updated_item = {
-      producto: product_data.id,
-      nombre: product_data.nombre,
-      descripcion: product_data.descripcion,
-      precio: price,
-      precio_original: product_data.precio,
-      cantidad: cantidad,
-      imagen: product_data.imagen,
-      categoria: product_data.categoria,
-      category_id: product_data.category_id,
-      category_nombre: product_data.category?.nombre,
-      promocion: product_data.promocion,
-      precio_promocion: product_data.precio_promocion,
-      disponible: product_data.disponible,
-      destacado: product_data.destacado,
-      subtotal: price * cantidad,
-      subtotal_original: subtotal_original,
-      descuento: descuento,
-      ahorro_porcentaje: product_data.promocion ? 
-        Math.round(((product_data.precio - price) / product_data.precio) * 100) : 0
-    };
-
-    res.json({
-      success: true,
-      message: 'Cantidad actualizada en el carrito',
-      item: updated_item,
-      action: 'updated'
-    });
-  } catch (error) {
-    console.error('Error al actualizar item del carrito:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error al actualizar producto en el carrito'
     });
   }
 };
@@ -407,7 +407,7 @@ export const clear_cart = async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Error al vaciar carrito:', error);
+    console.error('❌ Error al vaciar carrito:', error);
     res.status(500).json({
       success: false,
       message: 'Error al vaciar el carrito'
@@ -415,7 +415,7 @@ export const clear_cart = async (req, res) => {
   }
 };
 
-// Obtener resumen rápido del carrito (para mostrar en header)
+// Obtener resumen rápido del carrito 
 export const get_cart_summary = async (req, res) => {
   try {
     const { items } = req.body;
@@ -434,7 +434,7 @@ export const get_cart_summary = async (req, res) => {
     let total = 0;
     let cantidad_productos = 0;
 
-    // Solo calcular total sin validar productos (más rápido)
+    // Solo calcular total sin validar productos
     const summary_promises = items.map(async (item) => {
       if (!item.producto || !item.cantidad || item.cantidad < 1) return null;
 
@@ -467,12 +467,12 @@ export const get_cart_summary = async (req, res) => {
       success: true,
       resumen: {
         cantidad_items: items.length,
-        total: Math.round(total * 100) / 100, // Redondear a 2 decimales
+        total: Math.round(total * 100) / 100, 
         cantidad_productos: cantidad_productos
       }
     });
   } catch (error) {
-    console.error('Error al obtener resumen del carrito:', error);
+    console.error('❌ Error al obtener resumen del carrito:', error);
     res.status(500).json({
       success: false,
       message: 'Error al obtener resumen del carrito'

@@ -1,4 +1,4 @@
-// routes/categories.js (versión completa)
+// routes/categories.js 
 import express from 'express';
 import { 
   get_categories,
