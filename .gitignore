@@ -11,6 +11,10 @@ yarn-error.log*
 .env.development
 .env.example
 
+# ==================== CONFIGURACIONES ====================
+config/
+*.json
+
 # ==================== ARCHIVOS SUBIDOS ====================
 uploads/
 *.tmp

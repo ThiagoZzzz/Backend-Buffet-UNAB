@@ -6,7 +6,7 @@ import init_user from './user.js';
 import init_category from './category.js';
 import init_product from './product.js';
 import init_order from './order.js';
-import init_orderitem from './orderitem.js';
+import init_orderitem from './order-item.js';
 
 // Inicializar modelos
 const user = init_user(sequelize);
@@ -18,7 +18,7 @@ const orderitem = init_orderitem(sequelize);
 // Configurar asociaciones - usar nombres exactos en minúsculas
 const models = {
   user,
-  category, 
+  category,
   product,
   order,
   orderitem
@@ -36,13 +36,13 @@ const db = {
   sequelize
 };
 
-export { 
-  user, 
-  category, 
-  product, 
-  order, 
-  orderitem, 
-  sequelize 
+export {
+  user,
+  category,
+  product,
+  order,
+  orderitem,
+  sequelize
 };
 
 export default db;
