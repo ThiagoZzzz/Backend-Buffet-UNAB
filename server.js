@@ -1,4 +1,4 @@
-// server.js 
+// server.js
 import dotenv from 'dotenv';
 dotenv.config();
 
@@ -7,7 +7,7 @@ import cors from 'cors';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
-//  RUTAS  
+//  RUTAS
 import sequelize from './config/database.js';
 import { error_handler, not_found } from './middleware/error_handler.js';
 
@@ -34,8 +34,8 @@ const NODE_ENV = process.env.NODE_ENV || 'development';
 // ==================== MIDDLEWARE ====================
 app.use(cors({
   origin: [
-    'http://localhost:3000', 
-    'http://127.0.0.1:3000', 
+    'http://localhost:3000',
+    'http://127.0.0.1:3000',
     'http://localhost:5173',
     'http://localhost:5174'
   ],
@@ -73,7 +73,7 @@ app.use(async (req, res, next) => {
   }
 });
 
-// Middleware de logging 
+// Middleware de logging
 if (NODE_ENV === 'development') {
   app.use((req, res, next) => {
     console.log(`${new Date().toISOString()} - ${req.method} ${req.originalUrl}`);
@@ -85,7 +85,7 @@ if (NODE_ENV === 'development') {
 // Debug: Verificar estado del servidor y rutas
 app.get('/api/debug/routes', (req, res) => {
   const routes = [];
-  
+
   app._router.stack.forEach(middleware => {
     if (middleware.route) {
       // Rutas directas
@@ -107,7 +107,7 @@ app.get('/api/debug/routes', (req, res) => {
       });
     }
   });
-  
+
   res.json({
     success: true,
     total_routes: routes.length,
@@ -129,20 +129,20 @@ app.get('/api/admin/test', (req, res) => {
 app.get('/api/debug/auth-check', async (req, res) => {
   try {
     const token = req.headers.authorization?.replace('Bearer ', '');
-    
+
     if (!token) {
-      return res.json({ 
+      return res.json({
         authenticated: false,
-        message: 'No token provided' 
+        message: 'No token provided'
       });
     }
 
     const jwt = await import('jsonwebtoken');
     const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback-secret');
-    
+
     const { user } = await import('./models/index.js');
     const userData = await user.findByPk(decoded.id);
-    
+
     res.json({
       authenticated: true,
       user: {
@@ -173,7 +173,7 @@ app.get('/', (req, res) => {
     endpoints: {
       auth: '/api/auth',
       users: '/api/users',
-      products: '/api/products', 
+      products: '/api/products',
       orders: '/api/orders',
       cart: '/api/cart',
       admin: '/api/admin',
@@ -193,7 +193,7 @@ app.get('/', (req, res) => {
 app.get('/api/health', async (req, res) => {
   try {
     await sequelize.authenticate();
-    
+
     // Obtener estadísticas básicas
     const { user, product, order } = await import('./models/index.js');
     const [user_count, product_count, order_count] = await Promise.all([
@@ -201,8 +201,8 @@ app.get('/api/health', async (req, res) => {
       product.count(),
       order.count()
     ]);
-    
-    res.json({ 
+
+    res.json({
       success: true,
       message: '✅ API funcionando correctamente',
       status: {
@@ -250,7 +250,7 @@ app.use('/api/cart', cart_routes);
 app.use('/api/admin', admin_routes);
 app.use('/api/categories', categories_routes);
 app.use('/api/search', search_routes);
-app.use('/api/upload', upload_routes); 
+app.use('/api/upload', upload_routes);
 
 // ==================== DOCUMENTACIÓN DE ENDPOINTS ====================
 app.get('/api/endpoints', (req, res) => {
@@ -265,7 +265,7 @@ app.get('/api/endpoints', (req, res) => {
         'PUT  /api/auth/profile': 'Actualizar perfil (requiere auth)',
         'GET  /api/auth/verify': 'Verificar token (requiere auth)'
       },
-      
+
       // USUARIOS
       users: {
         'GET  /api/users/profile': 'Perfil del usuario (requiere auth)',
@@ -275,7 +275,7 @@ app.get('/api/endpoints', (req, res) => {
         'PUT  /api/users/:id/role': 'Actualizar rol (solo admin)',
         'DELETE /api/users/:id': 'Eliminar usuario (solo admin)'
       },
-      
+
       // PRODUCTOS
       products: {
         'GET  /api/products': 'Listar productos (público)',
@@ -285,7 +285,7 @@ app.get('/api/endpoints', (req, res) => {
         'PUT  /api/products/:id': 'Actualizar producto (solo admin)',
         'DELETE /api/products/:id': 'Eliminar producto (solo admin)'
       },
-      
+
       // PEDIDOS
       orders: {
         'POST /api/orders': 'Crear pedido (requiere auth)',
@@ -296,7 +296,7 @@ app.get('/api/endpoints', (req, res) => {
         'GET  /api/orders': 'Listar todos los pedidos (solo admin)',
         'PUT  /api/orders/:id/status': 'Actualizar estado (solo admin)'
       },
-      
+
       // CARRITO
       cart: {
         'POST /api/cart/validate': 'Validar carrito (requiere auth)',
@@ -306,7 +306,7 @@ app.get('/api/endpoints', (req, res) => {
         'DELETE /api/cart/clear': 'Vaciar carrito (requiere auth)',
         'POST /api/cart/summary': 'Resumen del carrito (requiere auth)'
       },
-      
+
       // ADMIN
       admin: {
         'GET  /api/admin/dashboard': 'Estadísticas del dashboard (solo admin)',
@@ -316,7 +316,7 @@ app.get('/api/endpoints', (req, res) => {
         'PUT  /api/admin/users/:id/role': 'Actualizar rol (solo admin)',
         'GET  /api/admin/products': 'Listar productos (solo admin)'
       },
-      
+
       // CATEGORÍAS
       categories: {
         'GET  /api/categories': 'Listar categorías (público)',
@@ -327,7 +327,7 @@ app.get('/api/endpoints', (req, res) => {
         'DELETE /api/categories/:id': 'Eliminar categoría (solo admin)',
         'PUT  /api/categories/:id/deactivate': 'Desactivar categoría (solo admin)'
       },
-      
+
       // BÚSQUEDA
       search: {
         'GET  /api/search/products': 'Búsqueda avanzada de productos (público)',
@@ -335,7 +335,7 @@ app.get('/api/endpoints', (req, res) => {
         'GET  /api/search/suggestions': 'Sugerencias de búsqueda (público)',
         'GET  /api/search/filters': 'Filtros disponibles (público)'
       },
-      
+
       // UPLOAD
       upload: {
         'POST /api/upload/products': 'Subir imagen de producto (solo admin)',
@@ -343,7 +343,7 @@ app.get('/api/endpoints', (req, res) => {
         'DELETE /api/upload/:type/:filename': 'Eliminar archivo (requiere auth/admin)',
         'GET  /api/upload/:type/:filename': 'Obtener información de archivo (público)'
       },
-      
+
       // DEBUG (TEMPORAL)
       debug: {
         'GET  /api/debug/routes': 'Ver todas las rutas registradas',
@@ -355,10 +355,10 @@ app.get('/api/endpoints', (req, res) => {
 });
 
 // ==================== MANEJO DE ERRORES ====================
-// 404 - Rutas no encontradas 
+// 404 - Rutas no encontradas
 app.use(not_found);
 
-// Manejo general de errores 
+// Manejo general de errores
 app.use(error_handler);
 
 // ==================== INICIAR SERVIDOR ====================
@@ -366,7 +366,7 @@ const start_server = async () => {
   try {
     // Sincronizar base de datos
     console.log('🔄 Sincronizando base de datos...');
-    await sequelize.sync({ 
+    await sequelize.sync({
       alter: false,
       force: false
     });
@@ -380,7 +380,7 @@ const start_server = async () => {
       console.log(`📍 http://localhost:${PORT}`);
       console.log('✅ Base de datos sincronizada');
       console.log('🎯 ================================================\n');
-      
+
       console.log('📋 Endpoints principales:');
       console.log('   🌐 GET  /api                    - Información del API');
       console.log('   ❤️  GET  /api/health          - Estado del servidor');
