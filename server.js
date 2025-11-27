@@ -363,17 +363,23 @@ app.use(error_handler);
 
 // ==================== INICIAR SERVIDOR ====================
 const start_server = async () => {
-  try {
-    // Sincronizar base de datos
-    console.log('🔄 Sincronizando base de datos...');
-    await sequelize.sync({
-      alter: false,
-      force: false
-    });
+  const server = app.listen(PORT, '0.0.0.0', () => {
+    console.log(`🚀 Servidor iniciado en puerto ${PORT} (esperando DB...)`);
+    console.log('🎯 ================================================\n');
+  });
 
-    // Iniciar servidor
-    app.listen(PORT, '0.0.0.0', () => {
-      console.log('\n🎯 ================================================');
+  try {
+    console.log('🔄 Intentando conectar y sincronizar base de datos...');
+
+    // Autenticar primero para probar conexión
+    await sequelize.authenticate();
+    console.log('✅ Conexión a BD establecida.');
+
+    // Luego sincronizar modelos
+    await sequelize.sync({ alter: false, force: false });
+    console.log('✅ Modelos sincronizados correctamente.');
+
+          console.log('\n🎯 ================================================');
       console.log('🚀 Servidor Buffet UNaB Backend');
       console.log('💾 Base de datos: MySQL + Sequelize');
       console.log('🌍 Ambiente:', NODE_ENV);
@@ -413,12 +419,9 @@ const start_server = async () => {
       console.log('   🔐 GET  /api/debug/auth-check - Verificar token\n');
 
       console.log('⚡ Servidor listo para recibir peticiones...\n');
-    });
-  } catch (error) {
-    console.error('❌ Error al iniciar servidor:', error);
-    process.exit(1);
+    } catch (error) {
+    console.error('❌ ERROR CRÍTICO DE BASE DE DATOS:', error);
   }
-};
 
 // Manejo de cierre graceful
 process.on('SIGINT', () => {
@@ -430,6 +433,7 @@ process.on('SIGTERM', () => {
   console.log('\n🔻 Recibida señal de terminación. Cerrando servidor...');
   process.exit(0);
 });
+}
 
 // Iniciar la aplicación
 start_server();
