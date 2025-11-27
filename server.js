@@ -372,7 +372,7 @@ const start_server = async () => {
     });
 
     // Iniciar servidor
-    app.listen(PORT, () => {
+    app.listen(PORT, '0.0.0.0', () => {
       console.log('\n🎯 ================================================');
       console.log('🚀 Servidor Buffet UNaB Backend');
       console.log('💾 Base de datos: MySQL + Sequelize');
