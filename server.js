@@ -58,21 +58,6 @@ app.use((req, res, next) => {
 // Servir archivos estáticos
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-// MIDDLEWARE CORREGIDO: Verificación de conexión a BD
-app.use(async (req, res, next) => {
-  try {
-    await sequelize.authenticate();
-    next();
-  } catch (error) {
-    console.error('❌ Error de conexión a BD:', error);
-    return res.status(503).json({
-      success: false,
-      message: 'Servicio de base de datos no disponible',
-      ...(NODE_ENV === 'development' && { error: error.message })
-    });
-  }
-});
-
 // Middleware de logging
 if (NODE_ENV === 'development') {
   app.use((req, res, next) => {
