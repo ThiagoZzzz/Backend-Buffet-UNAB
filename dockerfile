@@ -21,4 +21,4 @@ ENV PORT=3000
 EXPOSE 3000
 
 # El servidor se levanta cuando el contenedor arranca.
-CMD ["node", "server.js"]
+CMD ["npm", "run", "start"]

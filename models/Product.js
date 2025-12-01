@@ -46,6 +46,17 @@ const product = (sequelize) => {
       allowNull: true,
       defaultValue: ''
     },
+    stock: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      defaultValue: 0,
+      validate: {
+        min: {
+          args: [0],
+          msg: 'La cantidad del stock no puede ser negativo'
+        }
+      }
+    },
     disponible: {
       type: DataTypes.BOOLEAN,
       defaultValue: true
