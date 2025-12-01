@@ -17,7 +17,6 @@ RUN npm ci --production
 
 COPY . .
 
-ENV PORT=3000
 EXPOSE 3000
 
 # El servidor se levanta cuando el contenedor arranca.
