@@ -1,6 +1,6 @@
 // routes/orders.js
 import express from 'express';
-import { 
+import {
   create_order,
   get_user_orders,
   get_order_by_id,
@@ -11,7 +11,7 @@ import {
   get_user_order_stats
 } from '../controllers/order_controller.js';
 import { protect, restrict_to } from '../middleware/auth.js';
-import { validate_order } from '../middleware/validation.js'; 
+import { validate_order } from '../middleware/validation.js';
 
 const router = express.Router();
 

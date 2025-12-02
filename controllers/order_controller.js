@@ -7,7 +7,7 @@ export const create_order = async (req, res) => {
   try {
     const { items, metodo_pago, notas } = req.body;
     const user_id = req.user.id;
-    
+
     // Validaciones mejoradas
     if (!items || !Array.isArray(items) || items.length === 0) {
       return res.status(400).json({
@@ -30,7 +30,7 @@ export const create_order = async (req, res) => {
     const order_items = [];
     const errors = [];
 
-    // Usar Promise.all para consultas paralelas 
+    // Usar Promise.all para consultas paralelas
     const product_validation_promises = items.map(async (item) => {
       // Validar cantidad
       if (!item.cantidad || item.cantidad < 1) {
@@ -39,21 +39,21 @@ export const create_order = async (req, res) => {
       }
 
       const product_data = await product.findByPk(item.producto);
-      
+
       if (!product_data) {
         errors.push(`Producto no encontrado: ${item.producto}`);
         return null;
       }
-      
+
       if (!product_data.disponible) {
         errors.push(`Producto no disponible: ${product_data.nombre}`);
         return null;
       }
 
-      const price = product_data.promocion && product_data.precio_promocion 
-        ? product_data.precio_promocion 
+      const price = product_data.promocion && product_data.precio_promocion
+        ? product_data.precio_promocion
         : product_data.precio;
-      
+
       const subtotal = price * item.cantidad;
 
       return {
@@ -89,7 +89,7 @@ export const create_order = async (req, res) => {
 
     // Crear orden con transacción para atomicidad
     const transaction = await order.sequelize.transaction();
-    
+
     try {
       const new_order = await order.create({
         user_id,
@@ -112,11 +112,11 @@ export const create_order = async (req, res) => {
 
       await Promise.all(order_items_promises);
 
-      // Commit de la transacción
+      // Commit de la transacción (debe ser lo último en el try)
       await transaction.commit();
 
-      // Generar el Código QR
-      const qr_data_url = await QRcode.toDataURL(new_order.id.toString());
+      // Generar el QR
+      const qr_data_url = await QRcode.toDataURL(new_order.id.toString());
 
       // Cargar orden completa con relaciones
       const complete_order = await order.findByPk(new_order.id, {
@@ -132,7 +132,7 @@ export const create_order = async (req, res) => {
             include: [{
               model: product,
               as: 'product',
-              attributes: ['id', 'nombre', 'imagen', 'categoria']
+              attributes: ['id', 'nombre', 'imagen', 'category_id']
             }]
           }
         ]
@@ -146,8 +146,10 @@ export const create_order = async (req, res) => {
       });
 
     } catch (error) {
-      // Rollback en caso de error
-      await transaction.rollback();
+      // Rollback solo si la transacción aún está activa
+      if (transaction && !transaction.finished) {
+        await transaction.rollback();
+      }
       throw error;
     }
 
@@ -171,7 +173,7 @@ export const get_user_orders = async (req, res) => {
           include: [{
             model: product,
             as: 'product',
-            attributes: ['id', 'nombre', 'imagen', 'categoria']
+            attributes: ['id', 'nombre', 'imagen', 'category_id']
           }]
         }
       ],
@@ -207,7 +209,7 @@ export const get_order_by_id = async (req, res) => {
           include: [{
             model: product,
             as: 'product',
-            attributes: ['id', 'nombre', 'imagen', 'categoria', 'precio', 'precio_promocion', 'promocion']
+            attributes: ['id', 'nombre', 'imagen', 'category_id', 'precio', 'precio_promocion', 'promocion']
           }]
         }
       ]
@@ -244,8 +246,8 @@ export const get_order_by_id = async (req, res) => {
 export const get_order_stats = async (req, res) => {
   try {
     const total_orders = await order.count();
-    const total_revenue = await order.sum('total', { 
-      where: { estado: 'entregado' } 
+    const total_revenue = await order.sum('total', {
+      where: { estado: 'entregado' }
     });
     const avg_order_value = total_orders > 0 ? (total_revenue || 0) / total_orders : 0;
 
@@ -282,7 +284,7 @@ export const get_order_stats = async (req, res) => {
 export const cancel_order = async (req, res) => {
   try {
     const order_data = await order.findByPk(req.params.id);
-    
+
     if (!order_data) {
       return res.status(404).json({
         success: false,
@@ -311,7 +313,7 @@ export const cancel_order = async (req, res) => {
     const tiempo_creacion = new Date(order_data.created_at);
     const tiempo_actual = new Date();
     const diferencia_minutos = (tiempo_actual - tiempo_creacion) / (1000 * 60);
-    
+
     if (diferencia_minutos > 30 && req.user.role !== 'admin') {
       return res.status(400).json({
         success: false,
@@ -335,7 +337,7 @@ export const cancel_order = async (req, res) => {
           include: [{
             model: product,
             as: 'product',
-            attributes: ['id', 'nombre', 'imagen', 'categoria']
+            attributes: ['id', 'nombre', 'imagen', 'category_id']
           }]
         }
       ]
@@ -358,7 +360,7 @@ export const cancel_order = async (req, res) => {
 export const update_order_status = async (req, res) => {
   try {
     const { estado } = req.body;
-    
+
     // Validar estado
     const estados_validos = ['pendiente', 'confirmado', 'preparando', 'listo', 'entregado', 'cancelado'];
     if (!estado || !estados_validos.includes(estado)) {
@@ -369,7 +371,7 @@ export const update_order_status = async (req, res) => {
     }
 
     const order_data = await order.findByPk(req.params.id);
-    
+
     if (!order_data) {
       return res.status(404).json({
         success: false,
@@ -393,7 +395,7 @@ export const update_order_status = async (req, res) => {
     }
 
     await order_data.update({ estado });
-    
+
     const updated_order = await order.findByPk(order_data.id, {
       include: [{
         model: user,
@@ -421,7 +423,7 @@ export const update_order_status = async (req, res) => {
 export const get_all_orders = async (req, res) => {
   try {
     const { estado, page = 1, limit = 10 } = req.query;
-    
+
     const where_clause = {};
     if (estado && estado !== 'todos') {
       where_clause.estado = estado;
@@ -444,7 +446,7 @@ export const get_all_orders = async (req, res) => {
           include: [{
             model: product,
             as: 'product',
-            attributes: ['id', 'nombre', 'categoria']
+            attributes: ['id', 'nombre', 'category_id']
           }]
         }
       ],
@@ -523,7 +525,7 @@ export const get_user_order_stats = async (req, res) => {
 export const delete_order = async (req, res) => {
   try {
     const order_data = await order.findByPk(req.params.id);
-    
+
     if (!order_data) {
       return res.status(404).json({
         success: false,
