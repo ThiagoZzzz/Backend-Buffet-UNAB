@@ -1,5 +1,5 @@
 // controllers/product_controller.js
-import { product } from '../models/index.js';
+import { product, category } from '../models/index.js';
 import { Op } from 'sequelize';
 import fs from 'fs'; 
 
@@ -10,7 +10,7 @@ export const get_products = async (req, res) => {
     let where_clause = { disponible: true };
     
     if (categoria && categoria !== 'all') {
-      where_clause.categoria = categoria;
+      where_clause.category_id = categoria;
     }
     
     if (destacados === 'true') {
@@ -66,17 +66,14 @@ export const get_product_by_id = async (req, res) => {
 
 export const get_product_categories = async (req, res) => {
   try {
-    const categories = await product.findAll({
-      attributes: ['categoria'],
-      group: ['categoria'],
-      where: { disponible: true }
+    const categories = await category.findAll({
+      attributes: ['id', 'nombre'],
+      order: [['nombre', 'ASC']],
     });
-    
-    const category_names = categories.map(cat => cat.categoria);
 
     res.json({
       success: true,
-      categories: category_names
+      categories,
     });
   } catch (error) {
     console.error('Error al obtener categorías:', error);
@@ -93,7 +90,7 @@ export const create_product = async (req, res) => {
       nombre, 
       descripcion, 
       precio, 
-      categoria, 
+      category_id: categoria,
       disponible = true,
       destacado = false,
       promocion = false,
@@ -119,11 +116,11 @@ export const create_product = async (req, res) => {
       nombre: nombre.trim(),
       descripcion: descripcion?.trim() || '',
       precio: parseFloat(precio),
-      categoria,
+      category_id: categoria,
       imagen,
-      disponible: Boolean(disponible),
-      destacado: Boolean(destacado),
-      promocion: Boolean(promocion),
+      disponible: String(disponible).toLowerCase() === "true",
+      destacado: String(destacado).toLowerCase() === "true",
+      promocion: String(promocion).toLowerCase() === "true",
       precio_promocion: precio_promocion ? parseFloat(precio_promocion) : null
     });
 
@@ -157,7 +154,13 @@ export const update_product = async (req, res) => {
       });
     }
 
-    await product_data.update(req.body);
+    const body = {
+      ...req.body,
+      disponible: String(req.body.disponible).toLowerCase() === "true",
+      destacado: String(req.body.destacado).toLowerCase() === "true",
+      promocion: String(req.body.promocion).toLowerCase() === "true",
+    };
+    await product_data.update(body);
     
     res.json({
       success: true,

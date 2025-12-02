@@ -143,9 +143,9 @@ export const validate_product = [
   body('precio')
     .isFloat({ min: 0 })
     .withMessage('El precio debe ser un número mayor o igual a 0'),
-  body('categoria')
-    .isIn(['bebidas', 'golosinas', 'sandwiches', 'snacks', 'postres'])
-    .withMessage('Categoría no válida. Usar: bebidas, golosinas, sandwiches, snacks, postres'),
+  body('category_id')
+    .isInt({ min: 1 })
+    .withMessage('Debe enviar un ID de categoría válido'),
   body('descripcion')
     .optional()
     .isLength({ max: 500 })
