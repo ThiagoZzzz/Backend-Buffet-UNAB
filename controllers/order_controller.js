@@ -1,6 +1,7 @@
 // controllers/order_controller.js
 import { order, orderitem, product, user } from '../models/index.js';
 import { Op } from 'sequelize';
+import QRcode from 'qrcode';
 
 export const create_order = async (req, res) => {
   try {
@@ -114,6 +115,9 @@ export const create_order = async (req, res) => {
       // Commit de la transacción
       await transaction.commit();
 
+      // Generar el Código QR
+      const qr_data_url = await QRcode.toDataURL(new_order.id.toString());
+
       // Cargar orden completa con relaciones
       const complete_order = await order.findByPk(new_order.id, {
         include: [
@@ -137,6 +141,7 @@ export const create_order = async (req, res) => {
       res.status(201).json({
         success: true,
         message: 'Pedido creado exitosamente',
+        qr_code: qr_data_url,
         order: complete_order
       });
 
