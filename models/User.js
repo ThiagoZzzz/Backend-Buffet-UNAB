@@ -1,4 +1,4 @@
-// models/user.js 
+// models/user.js
 import { DataTypes } from 'sequelize';
 
 const user = (sequelize) => {
@@ -32,12 +32,15 @@ const user = (sequelize) => {
     role: {
       type: DataTypes.ENUM('user', 'admin'),
       defaultValue: 'user'
+    },
+    created_at: {
+      type: DataTypes.DATE,
+      defaultValue: DataTypes.NOW,
+      allowNull: false
     }
   }, {
     tableName: 'users',
     timestamps: false,
-    createdAt: false,
-    updatedAt: false,
     underscored: true
   });
 

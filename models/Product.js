@@ -31,16 +31,6 @@ const product = (sequelize) => {
         }
       }
     },
-    categoria: {
-      type: DataTypes.ENUM('bebidas', 'golosinas', 'sandwiches', 'snacks', 'postres'),
-      allowNull: false,
-      validate: {
-        isIn: {
-          args: [['bebidas', 'golosinas', 'sandwiches', 'snacks', 'postres']],
-          msg: 'Categoría no válida'
-        }
-      }
-    },
     imagen: {
       type: DataTypes.STRING,
       allowNull: true,
@@ -53,7 +43,7 @@ const product = (sequelize) => {
       validate: {
         min: {
           args: [0],
-          msg: 'La cantidad del stock no puede ser negativo'
+          msg: 'La cantidad del stock no puede ser negativa'
         }
       }
     },
