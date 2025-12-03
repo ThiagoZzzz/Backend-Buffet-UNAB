@@ -78,7 +78,7 @@ export const validate_cart = async (req, res) => {
         precio_original: product_data.precio,
         cantidad: item.cantidad,
         imagen: product_data.imagen,
-        categoria: product_data.categoria,
+        categoria: product_data.category_id,
         category_id: product_data.category_id,
         category_nombre: product_data.category?.nombre,
         category_activa: product_data.category?.activa, 
@@ -212,7 +212,7 @@ export const add_to_cart = async (req, res) => {
       precio_original: product_data.precio,
       cantidad: cantidad,
       imagen: product_data.imagen,
-      categoria: product_data.categoria,
+      categoria: product_data.category_id,
       category_id: product_data.category_id,
       category_nombre: product_data.category?.nombre,
       category_activa: product_data.category?.activa,
@@ -320,7 +320,7 @@ export const update_cart_item = async (req, res) => {
       precio_original: product_data.precio,
       cantidad: cantidad,
       imagen: product_data.imagen,
-      categoria: product_data.categoria,
+      categoria: product_data.category_id,
       category_id: product_data.category_id,
       category_nombre: product_data.category?.nombre,
       category_activa: product_data.category?.activa,
@@ -378,7 +378,7 @@ export const remove_from_cart = async (req, res) => {
       producto_removido: {
         id: product_data.id,
         nombre: product_data.nombre,
-        categoria: product_data.categoria
+        categoria: product_data.category_id,
       }
     });
   } catch (error) {
