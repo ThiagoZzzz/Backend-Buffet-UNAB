@@ -230,9 +230,12 @@ export const get_order_by_id = async (req, res) => {
       });
     }
 
+    const qr_data_url = await QRcode.toDataURL(order_data.id.toString());
+
     res.json({
       success: true,
-      order: order_data
+      order: order_data,
+      qr_code: qr_data_url
     });
   } catch (error) {
     console.error('Error al obtener pedido:', error);
