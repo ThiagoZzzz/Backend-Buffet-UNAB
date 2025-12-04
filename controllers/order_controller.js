@@ -1,7 +1,7 @@
 // controllers/order_controller.js
-import { order, orderitem, product, user } from '../models/index.js';
-import { Op } from 'sequelize';
-import QRcode from 'qrcode';
+import { order, orderitem, product, user } from "../models/index.js";
+import { Op } from "sequelize";
+import QRcode from "qrcode";
 
 export const create_order = async (req, res) => {
   try {
@@ -12,16 +12,18 @@ export const create_order = async (req, res) => {
     if (!items || !Array.isArray(items) || items.length === 0) {
       return res.status(400).json({
         success: false,
-        message: 'El carrito está vacío'
+        message: "El carrito está vacío",
       });
     }
 
     // Validar método de pago
-    const metodos_pago_validos = ['efectivo', 'tarjeta', 'qr'];
+    const metodos_pago_validos = ["efectivo", "tarjeta", "qr"];
     if (metodo_pago && !metodos_pago_validos.includes(metodo_pago)) {
       return res.status(400).json({
         success: false,
-        message: `Método de pago no válido. Usar: ${metodos_pago_validos.join(', ')}`
+        message: `Método de pago no válido. Usar: ${metodos_pago_validos.join(
+          ", "
+        )}`,
       });
     }
 
@@ -50,9 +52,10 @@ export const create_order = async (req, res) => {
         return null;
       }
 
-      const price = product_data.promocion && product_data.precio_promocion
-        ? product_data.precio_promocion
-        : product_data.precio;
+      const price =
+        product_data.promocion && product_data.precio_promocion
+          ? product_data.precio_promocion
+          : product_data.precio;
 
       const subtotal = price * item.cantidad;
 
@@ -63,15 +66,15 @@ export const create_order = async (req, res) => {
           cantidad: item.cantidad,
           precio: price,
           subtotal: subtotal,
-          nombre: product_data.nombre
-        }
+          nombre: product_data.nombre,
+        },
       };
     });
 
     const validation_results = await Promise.all(product_validation_promises);
 
     // Procesar resultados de validación
-    validation_results.forEach(result => {
+    validation_results.forEach((result) => {
       if (result) {
         order_items.push(result.validation_data);
         total += result.validation_data.subtotal;
@@ -82,8 +85,8 @@ export const create_order = async (req, res) => {
     if (errors.length > 0) {
       return res.status(400).json({
         success: false,
-        message: 'Errores en la validación del carrito',
-        errors: errors
+        message: "Errores en la validación del carrito",
+        errors: errors,
       });
     }
 
@@ -91,23 +94,29 @@ export const create_order = async (req, res) => {
     const transaction = await order.sequelize.transaction();
 
     try {
-      const new_order = await order.create({
-        user_id,
-        total,
-        metodo_pago: metodo_pago || 'efectivo',
-        notas: notas || '',
-        estado: 'pendiente'
-      }, { transaction });
+      const new_order = await order.create(
+        {
+          user_id,
+          total,
+          metodo_pago: metodo_pago || "efectivo",
+          notas: notas || "",
+          estado: "pendiente",
+        },
+        { transaction }
+      );
 
       // Crear items de la orden
       const order_items_promises = order_items.map(async (item) => {
-        await orderitem.create({
-          product_id: item.product_id,
-          cantidad: item.cantidad,
-          precio: item.precio,
-          subtotal: item.subtotal,
-          order_id: new_order.id,
-          }, { transaction });
+        await orderitem.create(
+          {
+            product_id: item.product_id,
+            cantidad: item.cantidad,
+            precio: item.precio,
+            subtotal: item.subtotal,
+            order_id: new_order.id,
+          },
+          { transaction }
+        );
 
         // Buscar producto
         const producto = await product.findByPk(item.product_id, {
@@ -143,25 +152,36 @@ export const create_order = async (req, res) => {
         include: [
           {
             model: user,
-            as: 'user',
-            attributes: ['id', 'nombre', 'email', 'telefono']
+            as: "user",
+            attributes: ["id", "nombre", "email", "telefono"],
           },
           {
             model: orderitem,
-            as: 'items',
-            include: [{
-              model: product,
-              as: 'product',
-              attributes: ['id', 'nombre', 'imagen', 'category_id']
-            }]
-          }
-        ]
+            as: "items",
+            include: [
+              {
+                model: product,
+                as: "product",
+                attributes: ["id", "nombre", "imagen", "category_id"],
+              },
+            ],
+          },
+        ],
       });
       res.status(201).json({
         success: true,
-        message: 'Pedido creado exitosamente',
+        message: "Pedido creado exitosamente",
         qr_code: qr_data_url,
-        order: complete_order
+        order: complete_order,
+      });
+
+      const io = req.app.get("io");
+      io.emit("nuevo_pedido", {
+        id: complete_order.id,
+        total: complete_order.total,
+        metodo_pago: complete_order.metodo_pago,
+        estado: complete_order.estado,
+        user: complete_order.user.nombre,
       });
     } catch (error) {
       // Rollback solo si la transacción aún está activa
@@ -171,10 +191,10 @@ export const create_order = async (req, res) => {
       throw error;
     }
   } catch (error) {
-    console.error('Error al crear pedido:', error);
+    console.error("Error al crear pedido:", error);
     res.status(500).json({
       success: false,
-      message: 'Error interno al crear el pedido'
+      message: "Error interno al crear el pedido",
     });
   }
 };
@@ -186,17 +206,17 @@ export const get_user_orders = async (req, res) => {
       include: [
         {
           model: orderitem,
-          as: 'items',
+          as: "items",
           include: [
             {
               model: product,
-              as: 'product',
-              attributes: ['id', 'nombre', 'imagen', 'category_id'],
+              as: "product",
+              attributes: ["id", "nombre", "imagen", "category_id"],
             },
           ],
         },
       ],
-      order: [['created_at', 'DESC']],
+      order: [["created_at", "DESC"]],
     });
 
     res.json({
@@ -205,10 +225,10 @@ export const get_user_orders = async (req, res) => {
       orders: user_orders,
     });
   } catch (error) {
-    console.error('Error al obtener pedidos del usuario:', error);
+    console.error("Error al obtener pedidos del usuario:", error);
     res.status(500).json({
       success: false,
-      message: 'Error al cargar tus pedidos',
+      message: "Error al cargar tus pedidos",
     });
   }
 };
@@ -219,24 +239,24 @@ export const get_order_by_id = async (req, res) => {
       include: [
         {
           model: user,
-          as: 'user',
-          attributes: ['id', 'nombre', 'email', 'telefono'],
+          as: "user",
+          attributes: ["id", "nombre", "email", "telefono"],
         },
         {
           model: orderitem,
-          as: 'items',
+          as: "items",
           include: [
             {
               model: product,
-              as: 'product',
+              as: "product",
               attributes: [
-                'id',
-                'nombre',
-                'imagen',
-                'category_id',
-                'precio',
-                'precio_promocion',
-                'promocion',
+                "id",
+                "nombre",
+                "imagen",
+                "category_id",
+                "precio",
+                "precio_promocion",
+                "promocion",
               ],
             },
           ],
@@ -247,15 +267,15 @@ export const get_order_by_id = async (req, res) => {
     if (!order_data) {
       return res.status(404).json({
         success: false,
-        message: 'Pedido no encontrado',
+        message: "Pedido no encontrado",
       });
     }
 
     // Verificar que el pedido pertenece al usuario o es admin
-    if (order_data.user_id !== req.user.id && req.user.role !== 'admin') {
+    if (order_data.user_id !== req.user.id && req.user.role !== "admin") {
       return res.status(403).json({
         success: false,
-        message: 'No autorizado para ver este pedido',
+        message: "No autorizado para ver este pedido",
       });
     }
 
@@ -267,10 +287,10 @@ export const get_order_by_id = async (req, res) => {
       qr_code: qr_data_url,
     });
   } catch (error) {
-    console.error('Error al obtener pedido:', error);
+    console.error("Error al obtener pedido:", error);
     res.status(500).json({
       success: false,
-      message: 'Error al cargar el pedido',
+      message: "Error al cargar el pedido",
     });
   }
 };
@@ -278,18 +298,18 @@ export const get_order_by_id = async (req, res) => {
 export const get_order_stats = async (req, res) => {
   try {
     const total_orders = await order.count();
-    const total_revenue = await order.sum('total', {
-      where: { estado: 'entregado' },
+    const total_revenue = await order.sum("total", {
+      where: { estado: "entregado" },
     });
     const avg_order_value =
       total_orders > 0 ? (total_revenue || 0) / total_orders : 0;
 
     const orders_by_status = await order.findAll({
       attributes: [
-        'estado',
-        [order.sequelize.fn('COUNT', order.sequelize.col('id')), 'count'],
+        "estado",
+        [order.sequelize.fn("COUNT", order.sequelize.col("id")), "count"],
       ],
-      group: ['estado'],
+      group: ["estado"],
       raw: true,
     });
 
@@ -306,10 +326,10 @@ export const get_order_stats = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error('Error al obtener estadísticas de pedidos:', error);
+    console.error("Error al obtener estadísticas de pedidos:", error);
     res.status(500).json({
       success: false,
-      message: 'Error al cargar estadísticas',
+      message: "Error al cargar estadísticas",
     });
   }
 };
@@ -321,24 +341,24 @@ export const cancel_order = async (req, res) => {
     if (!order_data) {
       return res.status(404).json({
         success: false,
-        message: 'Pedido no encontrado',
+        message: "Pedido no encontrado",
       });
     }
 
     // Verificar que el pedido pertenece al usuario o es admin
-    if (order_data.user_id !== req.user.id && req.user.role !== 'admin') {
+    if (order_data.user_id !== req.user.id && req.user.role !== "admin") {
       return res.status(403).json({
         success: false,
-        message: 'No autorizado para cancelar este pedido',
+        message: "No autorizado para cancelar este pedido",
       });
     }
 
     // Validar que el pedido se puede cancelar
     const estados_no_cancelables = [
-      'entregado',
-      'cancelado',
-      'preparando',
-      'listo',
+      "entregado",
+      "cancelado",
+      "preparando",
+      "listo",
     ];
     if (estados_no_cancelables.includes(order_data.estado)) {
       return res.status(400).json({
@@ -352,31 +372,31 @@ export const cancel_order = async (req, res) => {
     const tiempo_actual = new Date();
     const diferencia_minutos = (tiempo_actual - tiempo_creacion) / (1000 * 60);
 
-    if (diferencia_minutos > 30 && req.user.role !== 'admin') {
+    if (diferencia_minutos > 30 && req.user.role !== "admin") {
       return res.status(400).json({
         success: false,
-        message: 'El tiempo para cancelar el pedido ha expirado (30 minutos)',
+        message: "El tiempo para cancelar el pedido ha expirado (30 minutos)",
       });
     }
 
     // Cancelar el pedido
-    await order_data.update({ estado: 'cancelado' });
+    await order_data.update({ estado: "cancelado" });
 
     const updated_order = await order.findByPk(order_data.id, {
       include: [
         {
           model: user,
-          as: 'user',
-          attributes: ['id', 'nombre', 'email', 'telefono'],
+          as: "user",
+          attributes: ["id", "nombre", "email", "telefono"],
         },
         {
           model: orderitem,
-          as: 'items',
+          as: "items",
           include: [
             {
               model: product,
-              as: 'product',
-              attributes: ['id', 'nombre', 'imagen', 'category_id'],
+              as: "product",
+              attributes: ["id", "nombre", "imagen", "category_id"],
             },
           ],
         },
@@ -385,14 +405,14 @@ export const cancel_order = async (req, res) => {
 
     res.json({
       success: true,
-      message: 'Pedido cancelado exitosamente',
-      order: updated_order
+      message: "Pedido cancelado exitosamente",
+      order: updated_order,
     });
   } catch (error) {
-    console.error('Error al cancelar pedido:', error);
+    console.error("Error al cancelar pedido:", error);
     res.status(500).json({
       success: false,
-      message: 'Error al cancelar el pedido'
+      message: "Error al cancelar el pedido",
     });
   }
 };
@@ -403,17 +423,17 @@ export const update_order_status = async (req, res) => {
 
     // Validar estado
     const estados_validos = [
-      'pendiente',
-      'confirmado',
-      'preparando',
-      'listo',
-      'entregado',
-      'cancelado',
+      "pendiente",
+      "confirmado",
+      "preparando",
+      "listo",
+      "entregado",
+      "cancelado",
     ];
     if (!estado || !estados_validos.includes(estado)) {
       return res.status(400).json({
         success: false,
-        message: `Estado no válido. Usar: ${estados_validos.join(', ')}`
+        message: `Estado no válido. Usar: ${estados_validos.join(", ")}`,
       });
     }
 
@@ -422,22 +442,22 @@ export const update_order_status = async (req, res) => {
     if (!order_data) {
       return res.status(404).json({
         success: false,
-        message: 'Pedido no encontrado'
+        message: "Pedido no encontrado",
       });
     }
 
     // Validar transición de estado
-    if (order_data.estado === 'entregado' && estado !== 'entregado') {
+    if (order_data.estado === "entregado" && estado !== "entregado") {
       return res.status(400).json({
         success: false,
-        message: 'No se puede modificar el estado de un pedido ya entregado'
+        message: "No se puede modificar el estado de un pedido ya entregado",
       });
     }
 
-    if (order_data.estado === 'cancelado') {
+    if (order_data.estado === "cancelado") {
       return res.status(400).json({
         success: false,
-        message: 'No se puede modificar un pedido cancelado'
+        message: "No se puede modificar un pedido cancelado",
       });
     }
 
@@ -447,8 +467,8 @@ export const update_order_status = async (req, res) => {
       include: [
         {
           model: user,
-          as: 'user',
-          attributes: ['id', 'nombre', 'email', 'telefono'],
+          as: "user",
+          attributes: ["id", "nombre", "email", "telefono"],
         },
       ],
     });
@@ -458,13 +478,13 @@ export const update_order_status = async (req, res) => {
       message: `Estado del pedido actualizado a: ${estado}`,
       order: updated_order,
       estado_anterior: order_data.estado,
-      estado_nuevo: estado
+      estado_nuevo: estado,
     });
   } catch (error) {
-    console.error('Error al actualizar estado del pedido:', error);
+    console.error("Error al actualizar estado del pedido:", error);
     res.status(500).json({
       success: false,
-      message: 'Error al actualizar el estado del pedido'
+      message: "Error al actualizar el estado del pedido",
     });
   }
 };
@@ -474,7 +494,7 @@ export const get_all_orders = async (req, res) => {
     const { estado, page = 1, limit = 10 } = req.query;
 
     const where_clause = {};
-    if (estado && estado !== 'todos') {
+    if (estado && estado !== "todos") {
       where_clause.estado = estado;
     }
 
@@ -486,22 +506,24 @@ export const get_all_orders = async (req, res) => {
       include: [
         {
           model: user,
-          as: 'user',
-          attributes: ['id', 'nombre', 'email', 'telefono']
+          as: "user",
+          attributes: ["id", "nombre", "email", "telefono"],
         },
         {
           model: orderitem,
-          as: 'items',
-          include: [{
-            model: product,
-            as: 'product',
-            attributes: ['id', 'nombre', 'category_id']
-          }]
-        }
+          as: "items",
+          include: [
+            {
+              model: product,
+              as: "product",
+              attributes: ["id", "nombre", "category_id"],
+            },
+          ],
+        },
       ],
-      order: [['created_at', 'DESC']],
+      order: [["created_at", "DESC"]],
       limit: parsed_limit,
-      offset: offset
+      offset: offset,
     });
 
     const total_pages = Math.ceil(count / parsed_limit);
@@ -514,15 +536,15 @@ export const get_all_orders = async (req, res) => {
         page: parseInt(page),
         total_pages,
         has_next: parseInt(page) < total_pages,
-        has_prev: parseInt(page) > 1
+        has_prev: parseInt(page) > 1,
       },
-      orders
+      orders,
     });
   } catch (error) {
-    console.error('Error al obtener todos los pedidos:', error);
+    console.error("Error al obtener todos los pedidos:", error);
     res.status(500).json({
       success: false,
-      message: 'Error al cargar los pedidos'
+      message: "Error al cargar los pedidos",
     });
   }
 };
@@ -534,21 +556,30 @@ export const get_user_order_stats = async (req, res) => {
     const stats = await order.findOne({
       where: { user_id },
       attributes: [
-        [order.sequelize.fn('COUNT', order.sequelize.col('id')), 'total_orders'],
-        [order.sequelize.fn('SUM', order.sequelize.col('total')), 'total_gastado'],
-        [order.sequelize.fn('AVG', order.sequelize.col('total')), 'promedio_orden']
+        [
+          order.sequelize.fn("COUNT", order.sequelize.col("id")),
+          "total_orders",
+        ],
+        [
+          order.sequelize.fn("SUM", order.sequelize.col("total")),
+          "total_gastado",
+        ],
+        [
+          order.sequelize.fn("AVG", order.sequelize.col("total")),
+          "promedio_orden",
+        ],
       ],
-      raw: true
+      raw: true,
     });
 
     const orders_by_status = await order.findAll({
       where: { user_id },
       attributes: [
-        'estado',
-        [order.sequelize.fn('COUNT', order.sequelize.col('id')), 'count']
+        "estado",
+        [order.sequelize.fn("COUNT", order.sequelize.col("id")), "count"],
       ],
-      group: ['estado'],
-      raw: true
+      group: ["estado"],
+      raw: true,
     });
 
     res.json({
@@ -560,14 +591,14 @@ export const get_user_order_stats = async (req, res) => {
         orders_by_status: orders_by_status.reduce((acc, item) => {
           acc[item.estado] = parseInt(item.count);
           return acc;
-        }, {})
-      }
+        }, {}),
+      },
     });
   } catch (error) {
-    console.error('Error al obtener estadísticas del usuario:', error);
+    console.error("Error al obtener estadísticas del usuario:", error);
     res.status(500).json({
       success: false,
-      message: 'Error al cargar estadísticas'
+      message: "Error al cargar estadísticas",
     });
   }
 };
@@ -578,15 +609,15 @@ export const delete_order = async (req, res) => {
     if (!order_data) {
       return res.status(404).json({
         success: false,
-        message: 'Pedido no encontrado'
+        message: "Pedido no encontrado",
       });
     }
 
     // Solo permitir eliminar pedidos cancelados
-    if (order_data.estado !== 'cancelado') {
+    if (order_data.estado !== "cancelado") {
       return res.status(400).json({
         success: false,
-        message: 'Solo se pueden eliminar pedidos cancelados'
+        message: "Solo se pueden eliminar pedidos cancelados",
       });
     }
 
@@ -594,13 +625,13 @@ export const delete_order = async (req, res) => {
 
     res.json({
       success: true,
-      message: 'Pedido eliminado exitosamente'
+      message: "Pedido eliminado exitosamente",
     });
   } catch (error) {
-    console.error('Error al eliminar pedido:', error);
+    console.error("Error al eliminar pedido:", error);
     res.status(500).json({
       success: false,
-      message: 'Error al eliminar el pedido'
+      message: "Error al eliminar el pedido",
     });
   }
 };
