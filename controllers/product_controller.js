@@ -142,7 +142,6 @@ export const create_product = async (req, res) => {
     });
   }
 };
-
 export const update_product = async (req, res) => {
   try {
     const product_data = await product.findByPk(req.params.id);
@@ -160,6 +159,13 @@ export const update_product = async (req, res) => {
       destacado: String(req.body.destacado).toLowerCase() === "true",
       promocion: String(req.body.promocion).toLowerCase() === "true",
     };
+
+    if (req.file) {
+      body.imagen = `/uploads/products/${req.file.filename}`;
+    } else {
+      delete body.imagen;
+    }
+
     await product_data.update(body);
     
     res.json({
@@ -175,6 +181,7 @@ export const update_product = async (req, res) => {
     });
   }
 };
+
 
 export const delete_product = async (req, res) => {
   try {
