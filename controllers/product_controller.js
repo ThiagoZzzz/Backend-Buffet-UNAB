@@ -91,6 +91,7 @@ export const create_product = async (req, res) => {
       descripcion, 
       precio, 
       category_id: categoria,
+      stock = 0,
       disponible = true,
       destacado = false,
       promocion = false,
@@ -118,6 +119,7 @@ export const create_product = async (req, res) => {
       precio: parseFloat(precio),
       category_id: categoria,
       imagen,
+      stock: parseInt(stock, 10),
       disponible: String(disponible).toLowerCase() === "true",
       destacado: String(destacado).toLowerCase() === "true",
       promocion: String(promocion).toLowerCase() === "true",
@@ -153,8 +155,11 @@ export const update_product = async (req, res) => {
       });
     }
 
+    const nuevoStock = req.body.stock ? parseInt(req.body.stock, 10) : product_data.stock;
+
     const body = {
       ...req.body,
+      stock: nuevoStock,
       disponible: String(req.body.disponible).toLowerCase() === "true",
       destacado: String(req.body.destacado).toLowerCase() === "true",
       promocion: String(req.body.promocion).toLowerCase() === "true",
