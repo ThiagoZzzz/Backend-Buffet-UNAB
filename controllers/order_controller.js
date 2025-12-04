@@ -100,15 +100,35 @@ export const create_order = async (req, res) => {
       }, { transaction });
 
       // Crear items de la orden
-      const order_items_promises = order_items.map(item =>
-        orderitem.create({
+      const order_items_promises = order_items.map(async (item) => {
+        await orderitem.create({
           product_id: item.product_id,
           cantidad: item.cantidad,
           precio: item.precio,
           subtotal: item.subtotal,
-          order_id: new_order.id
-        }, { transaction })
-      );
+          order_id: new_order.id,
+          }, { transaction });
+
+        // Buscar producto
+        const producto = await product.findByPk(item.product_id, {
+          transaction,
+        });
+
+        // Validar stock suficiente
+        if (item.cantidad > producto.stock) {
+          throw new Error(
+            `Stock insuficiente para producto ${producto.nombre}`
+          );
+        }
+
+        // Descontar stock
+        producto.stock -= item.cantidad;
+        if (producto.stock <= 0) {
+          producto.stock = 0;
+          producto.disponible = false;
+        }
+        await producto.save({ transaction });
+      });
 
       await Promise.all(order_items_promises);
 
@@ -143,7 +163,6 @@ export const create_order = async (req, res) => {
         qr_code: qr_data_url,
         order: complete_order
       });
-
     } catch (error) {
       // Rollback solo si la transacción aún está activa
       if (transaction && !transaction.finished) {
@@ -151,7 +170,6 @@ export const create_order = async (req, res) => {
       }
       throw error;
     }
-
   } catch (error) {
     console.error('Error al crear pedido:', error);
     res.status(500).json({
@@ -169,26 +187,28 @@ export const get_user_orders = async (req, res) => {
         {
           model: orderitem,
           as: 'items',
-          include: [{
-            model: product,
-            as: 'product',
-            attributes: ['id', 'nombre', 'imagen', 'category_id']
-          }]
-        }
+          include: [
+            {
+              model: product,
+              as: 'product',
+              attributes: ['id', 'nombre', 'imagen', 'category_id'],
+            },
+          ],
+        },
       ],
-      order: [['created_at', 'DESC']]
+      order: [['created_at', 'DESC']],
     });
 
     res.json({
       success: true,
       cantidad: user_orders.length,
-      orders: user_orders
+      orders: user_orders,
     });
   } catch (error) {
     console.error('Error al obtener pedidos del usuario:', error);
     res.status(500).json({
       success: false,
-      message: 'Error al cargar tus pedidos'
+      message: 'Error al cargar tus pedidos',
     });
   }
 };
@@ -200,24 +220,34 @@ export const get_order_by_id = async (req, res) => {
         {
           model: user,
           as: 'user',
-          attributes: ['id', 'nombre', 'email', 'telefono']
+          attributes: ['id', 'nombre', 'email', 'telefono'],
         },
         {
           model: orderitem,
           as: 'items',
-          include: [{
-            model: product,
-            as: 'product',
-            attributes: ['id', 'nombre', 'imagen', 'category_id', 'precio', 'precio_promocion', 'promocion']
-          }]
-        }
-      ]
+          include: [
+            {
+              model: product,
+              as: 'product',
+              attributes: [
+                'id',
+                'nombre',
+                'imagen',
+                'category_id',
+                'precio',
+                'precio_promocion',
+                'promocion',
+              ],
+            },
+          ],
+        },
+      ],
     });
 
     if (!order_data) {
       return res.status(404).json({
         success: false,
-        message: 'Pedido no encontrado'
+        message: 'Pedido no encontrado',
       });
     }
 
@@ -225,7 +255,7 @@ export const get_order_by_id = async (req, res) => {
     if (order_data.user_id !== req.user.id && req.user.role !== 'admin') {
       return res.status(403).json({
         success: false,
-        message: 'No autorizado para ver este pedido'
+        message: 'No autorizado para ver este pedido',
       });
     }
 
@@ -234,13 +264,13 @@ export const get_order_by_id = async (req, res) => {
     res.json({
       success: true,
       order: order_data,
-      qr_code: qr_data_url
+      qr_code: qr_data_url,
     });
   } catch (error) {
     console.error('Error al obtener pedido:', error);
     res.status(500).json({
       success: false,
-      message: 'Error al cargar el pedido'
+      message: 'Error al cargar el pedido',
     });
   }
 };
@@ -249,17 +279,18 @@ export const get_order_stats = async (req, res) => {
   try {
     const total_orders = await order.count();
     const total_revenue = await order.sum('total', {
-      where: { estado: 'entregado' }
+      where: { estado: 'entregado' },
     });
-    const avg_order_value = total_orders > 0 ? (total_revenue || 0) / total_orders : 0;
+    const avg_order_value =
+      total_orders > 0 ? (total_revenue || 0) / total_orders : 0;
 
     const orders_by_status = await order.findAll({
       attributes: [
         'estado',
-        [order.sequelize.fn('COUNT', order.sequelize.col('id')), 'count']
+        [order.sequelize.fn('COUNT', order.sequelize.col('id')), 'count'],
       ],
       group: ['estado'],
-      raw: true
+      raw: true,
     });
 
     res.json({
@@ -271,14 +302,14 @@ export const get_order_stats = async (req, res) => {
         orders_by_status: orders_by_status.reduce((acc, item) => {
           acc[item.estado] = parseInt(item.count);
           return acc;
-        }, {})
-      }
+        }, {}),
+      },
     });
   } catch (error) {
     console.error('Error al obtener estadísticas de pedidos:', error);
     res.status(500).json({
       success: false,
-      message: 'Error al cargar estadísticas'
+      message: 'Error al cargar estadísticas',
     });
   }
 };
@@ -290,7 +321,7 @@ export const cancel_order = async (req, res) => {
     if (!order_data) {
       return res.status(404).json({
         success: false,
-        message: 'Pedido no encontrado'
+        message: 'Pedido no encontrado',
       });
     }
 
@@ -298,16 +329,21 @@ export const cancel_order = async (req, res) => {
     if (order_data.user_id !== req.user.id && req.user.role !== 'admin') {
       return res.status(403).json({
         success: false,
-        message: 'No autorizado para cancelar este pedido'
+        message: 'No autorizado para cancelar este pedido',
       });
     }
 
     // Validar que el pedido se puede cancelar
-    const estados_no_cancelables = ['entregado', 'cancelado', 'preparando', 'listo'];
+    const estados_no_cancelables = [
+      'entregado',
+      'cancelado',
+      'preparando',
+      'listo',
+    ];
     if (estados_no_cancelables.includes(order_data.estado)) {
       return res.status(400).json({
         success: false,
-        message: `No se puede cancelar un pedido con estado: ${order_data.estado}`
+        message: `No se puede cancelar un pedido con estado: ${order_data.estado}`,
       });
     }
 
@@ -319,7 +355,7 @@ export const cancel_order = async (req, res) => {
     if (diferencia_minutos > 30 && req.user.role !== 'admin') {
       return res.status(400).json({
         success: false,
-        message: 'El tiempo para cancelar el pedido ha expirado (30 minutos)'
+        message: 'El tiempo para cancelar el pedido ha expirado (30 minutos)',
       });
     }
 
@@ -331,18 +367,20 @@ export const cancel_order = async (req, res) => {
         {
           model: user,
           as: 'user',
-          attributes: ['id', 'nombre', 'email', 'telefono']
+          attributes: ['id', 'nombre', 'email', 'telefono'],
         },
         {
           model: orderitem,
           as: 'items',
-          include: [{
-            model: product,
-            as: 'product',
-            attributes: ['id', 'nombre', 'imagen', 'category_id']
-          }]
-        }
-      ]
+          include: [
+            {
+              model: product,
+              as: 'product',
+              attributes: ['id', 'nombre', 'imagen', 'category_id'],
+            },
+          ],
+        },
+      ],
     });
 
     res.json({
@@ -364,7 +402,14 @@ export const update_order_status = async (req, res) => {
     const { estado } = req.body;
 
     // Validar estado
-    const estados_validos = ['pendiente', 'confirmado', 'preparando', 'listo', 'entregado', 'cancelado'];
+    const estados_validos = [
+      'pendiente',
+      'confirmado',
+      'preparando',
+      'listo',
+      'entregado',
+      'cancelado',
+    ];
     if (!estado || !estados_validos.includes(estado)) {
       return res.status(400).json({
         success: false,
@@ -399,11 +444,13 @@ export const update_order_status = async (req, res) => {
     await order_data.update({ estado });
 
     const updated_order = await order.findByPk(order_data.id, {
-      include: [{
-        model: user,
-        as: 'user',
-        attributes: ['id', 'nombre', 'email', 'telefono']
-      }]
+      include: [
+        {
+          model: user,
+          as: 'user',
+          attributes: ['id', 'nombre', 'email', 'telefono'],
+        },
+      ],
     });
 
     res.json({
