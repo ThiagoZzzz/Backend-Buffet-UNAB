@@ -33,7 +33,7 @@ router.use(restrict_to("admin"));
 // Crear producto
 router.post(
   "/",
-  upload_product_image.single("imagen"),
+  upload_product_image.single("image"),
   handle_upload_error,
   validate_product,
   create_product
@@ -42,7 +42,7 @@ router.post(
 // Actualizar producto
 router.put(
   "/:id",
-  upload_product_image.single("imagen"),
+  upload_product_image.single("image"),
   handle_upload_error,
   validate_product,
   update_product
