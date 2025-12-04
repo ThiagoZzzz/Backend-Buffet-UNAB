@@ -5,8 +5,8 @@ import QRcode from 'qrcode';
 
 export const create_order = async (req, res) => {
   try {
-    const { items, metodo_pago, notas } = req.body;
-    const user_id = req.user.id;
+    const { items, metodo_pago, notas, user_id: bodyUserId } = req.body;
+    const user_id = bodyUserId || req.user.id;
 
     // Validaciones mejoradas
     if (!items || !Array.isArray(items) || items.length === 0) {
@@ -137,7 +137,6 @@ export const create_order = async (req, res) => {
           }
         ]
       });
-
       res.status(201).json({
         success: true,
         message: 'Pedido creado exitosamente',
