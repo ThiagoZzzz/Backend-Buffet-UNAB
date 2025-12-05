@@ -6,6 +6,7 @@ import express from 'express';
 import cors from 'cors';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { Server } from 'socket.io';
 
 //  RUTAS
 import sequelize from './config/database.js';
@@ -355,6 +356,27 @@ const start_server = async () => {
     console.log(`🚀 Servidor iniciado en puerto ${PORT} (esperando DB...)`);
     console.log('🎯 ================================================\n');
   });
+
+  // Inicializar Socket.IO
+const io = new Server(server, {
+  cors: {
+    origin: [
+      'http://localhost:3000',
+      'http://127.0.0.1:3000',
+      'http://localhost:5173',
+      'http://localhost:5174'
+    ],
+    credentials: true
+  }
+});
+
+// Guardar io en app para usarlo en controladores
+app.set('io', io);
+
+io.on('connection', (socket) => {
+  console.log('🟢 Cliente conectado:', socket.id);
+});
+
 
   try {
     console.log('🔄 Intentando conectar y sincronizar base de datos...');
