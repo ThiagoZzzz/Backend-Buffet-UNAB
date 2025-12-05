@@ -2,6 +2,7 @@
 import { order, orderitem, product, user } from "../models/index.js";
 import { Op } from "sequelize";
 import QRcode from "qrcode";
+import { sendOrderReadyMail } from "../helpers/mailer.js";
 
 export const create_order = async (req, res) => {
   try {
@@ -472,6 +473,11 @@ export const update_order_status = async (req, res) => {
         },
       ],
     });
+
+    if (estado === "listo") {
+      const qrUrl = await QRcode.toDataURL(updated_order.id.toString());
+      await sendOrderReadyMail(updated_order, qrUrl);
+    }
 
     res.json({
       success: true,
