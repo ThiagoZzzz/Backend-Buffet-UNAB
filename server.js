@@ -40,8 +40,10 @@ app.use(cors({
     'http://127.0.0.1:3000',
     'http://localhost:5173',
     'http://localhost:5174',
-    // origen producción.
-    'https://frontend-buffet-unab-466577800352.us-central1.run.app'
+    // origen GCP (pruebas).
+    'https://frontend-buffet-unab-466577800352.us-central1.run.app',
+    // origen GCP (producción).
+    'https://buffet-unab-466577800352.us-central1.run.app'
   ],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
